@@ -36,6 +36,7 @@ class Model:
                 "omega": [],
                 "veloc": [],
                 "lin_ve": [],
+                "lin_ve2": [],
                 "radial": [],
                 "radial_deg": [],
                 "x": [],
@@ -66,6 +67,9 @@ class Model:
         omega = omega_old * (1 - self.friction) - GRAV / self.rope * math.sin(theta_old) * step_size
         theta = (theta_old + omega * step_size)  # % 360
 
+        # theta = (theta_old + omega_old * step_size)  # % 360
+        # omega = omega_old * (1 - self.friction) - GRAV / self.rope * math.sin(theta) * step_size
+
         self.omega = omega
         self.theta = theta
 
@@ -84,8 +88,9 @@ class Model:
 
         # print(omega)
         lin_ve = (theta - theta_old) / step_size * self.rope
+        lin_ve2 = omega * self.rope
         # lin_ve = math.radians(omega) * self.rope / step_size
-
+        # lin_ve = velocity
         # lin_ve = math.radians(omega / step_size) * self.rope
         # lin_ve = math.radians(theta_old - theta) * self.rope / step_size
         # omg_rad = math.radians(omega)
@@ -100,6 +105,7 @@ class Model:
 
         self.data['veloc'].append(velocity)
         self.data['lin_ve'].append(lin_ve)
+        self.data['lin_ve2'].append(lin_ve2)
         self.data['ep'].append(ep)
         self.data['ek'].append(ek)
         self.data['total_en'].append(total_en)
@@ -110,13 +116,13 @@ class Model:
 
 "Model Creation"
 center = (0, 0)
-model = Model(*center, mass=1, rope=5, initial_theta=math.radians(90), initial_omega=0, stepsize=.01, friction=0)
+model = Model(*center, mass=1, rope=5, initial_theta=math.radians(90), initial_omega=0, stepsize=.04, friction=0)
 initial = model.x, model.y
 all_trace = []
 offset_x = 300
 offset_y = 300
 
-for ti in range(1000):
+for ti in range(200):
     array = np.zeros((600, 600, 3), dtype=np.uint8) + 170
     step = model.step()
     all_trace.append(step)
@@ -157,8 +163,9 @@ ax1 = plt.axes([0.1, 0.05, 0.8, 0.6])
 ax2 = plt.axes([0.1, 0.7, 0.8, 0.2])
 
 ax1.plot(model.data['veloc'], label="velocity (from mgh)", c='r')
-ax1.plot(model.data['lin_ve'], label="lin_ve", c=(1, 1, 0.1), linewidth=3)
-ax1.plot(model.data['omega'], label="omega", dashes=[10, 5], linewidth=3)
+ax1.plot(model.data['lin_ve'], label="lin_ve", c=(1, 1, 0.1), dashes=[10, 5], linewidth=3)
+ax1.plot(model.data['lin_ve2'], label="lin_ve2", c=(0.5, 0.5, 1), dashes=[10, 5, 5, 5], linewidth=3)
+ax1.plot(model.data['omega'], label="omega", dashes=[8, 5], linewidth=3)
 # ax1.plot(model.data['radial'], label="radial")
 # ax1.plot(model.data['radial_deg'], label="radial_deg")
 # ax1.plot(model.data['factor'], label="factor")
