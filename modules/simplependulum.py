@@ -123,9 +123,9 @@ def val_matrix_to_color_matrix(arr):
     return color
 
 
-def pendulum_gradient(rope=1, step_size=0.001, friction=0):
+def pendulum_gradient(rope=1, step_size=0.001, friction=0.001):
     N = 50
-    T = 5
+    T = 10
     vec = (np.arange(N) - N / 2) / N * T * 2
     vec_x = vec
     vec_y = vec
@@ -133,14 +133,14 @@ def pendulum_gradient(rope=1, step_size=0.001, friction=0):
     arr = np.stack([X, -Y], axis=-1)
 
     plt.figure()
-    scale = 0.0001
+    scale = 1
     U = np.zeros((N, N))
     V = np.zeros((N, N))
     C = np.zeros((N, N))
     for row_ind, row in enumerate(arr):
         for col_ind, (this_th, this_om) in enumerate(row):
             omega = this_om * (1 - friction) - GRAV / rope * math.sin(this_th) * step_size
-            theta = this_th + omega * step_size
+            theta = this_th + this_om * step_size
 
             om_change = (this_om - omega) * scale
             th_change = (this_th - theta) * scale
@@ -152,10 +152,18 @@ def pendulum_gradient(rope=1, step_size=0.001, friction=0):
             C[row_ind, col_ind] = abs(om_change) + abs(th_change)
 
     # C = val_matrix_to_color_matrix(C)
+    for num in range(-T, T + 1):
+        dist = num % np.pi
+        if dist < 1:
+            pos = num - dist
+            plt.scatter(pos, 0, label="Pi", c=[(0, 0.5, 1)])
+
     plt.quiver(X, Y, U, V, C, cmap="ocean_r", width=0.001)
     plt.xlabel("Theta")
     plt.ylabel("Omega")
     plt.title("Pendulum gradient")
+    plt.suptitle(f"friction: {friction}")
+    plt.legend(["k * Pi"])
     plt.show()
 
 
