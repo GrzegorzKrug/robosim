@@ -12,7 +12,7 @@ GRAV = 9.81
 
 
 class Model:
-    def __init__(self, cx, cy, mass=1, rope=5, initial_theta=1.0, initial_omega=0, friction=0.5, stepsize=1.0):
+    def __init__(self, cx, cy, mass=1, rope=5, initial_theta=1.0, initial_omega=0.0, friction=0.5, stepsize=1.0):
         """"""
         "Params"
         self.anchor = cx, cy
@@ -36,7 +36,7 @@ class Model:
                 "omega": [],
                 "veloc": [],
                 "lin_ve": [],
-                "lin_ve2": [],
+                # "lin_ve2": [],
                 "radial": [],
                 "radial_deg": [],
                 "x": [],
@@ -45,15 +45,16 @@ class Model:
                 "ek": [],
                 "total_en": [],
                 "factor": [],
+                "h": [],
         }
         "Initialization"
-        self.x, self.y = self.position_on_arc(math.degrees(initial_theta))
+        self.x, self.y = self.position_on_arc(initial_theta)
 
-    def position_on_arc(self, theta_deg):
+    def position_on_arc(self, theta):
         x, y = self.anchor
-        theta_rad = math.radians(theta_deg)
-        x = x + self.rope * np.sin(theta_rad)
-        y = y - self.rope * np.cos(theta_rad)
+
+        x = x + self.rope * np.sin(theta)
+        y = y - self.rope * np.cos(theta)
         return x, y
 
     def step(self, step_size=None):
@@ -74,7 +75,7 @@ class Model:
         self.theta = theta
 
         theta_deg = math.degrees(theta)
-        x, y = self.position_on_arc(theta_deg)
+        x, y = self.position_on_arc(theta)
 
         self.data['theta_deg'].append(theta_deg)
         self.data['omega'].append(omega)
@@ -86,99 +87,163 @@ class Model:
                 2 * GRAV * self.rope * abs(math.cos(theta) - math.cos(self.initial_theta))
         )
 
-        # print(omega)
-        lin_ve = (theta - theta_old) / step_size * self.rope
-        lin_ve2 = omega * self.rope
-        # lin_ve = math.radians(omega) * self.rope / step_size
-        # lin_ve = velocity
-        # lin_ve = math.radians(omega / step_size) * self.rope
-        # lin_ve = math.radians(theta_old - theta) * self.rope / step_size
-        # omg_rad = math.radians(omega)
+        # velocity = math.sqrt(
+        #         2 * GRAV * self.rope * abs(math.cos(theta) - math.cos(self.initial_theta))
+        # )
+
+        lin_ve = abs((theta / step_size - theta_old / step_size) * self.rope)
+        lin_ve = omega * self.rope
         # lin_ve = velocity
 
-        # lin_ve = omega / 180 * math.pi * self.rope * self.rope
-        # lin_ve = omega * self.rope  / 360
+        h = self.rope * (1 - math.cos(theta))
 
-        ep = self.mass * GRAV * (self.rope + y)
+        # print(math.cos(math.radians(89)))
+        ep = self.mass * GRAV * h
         ek = (1 / 2) * self.mass * (lin_ve ** 2)
         total_en = ep + ek
 
         self.data['veloc'].append(velocity)
         self.data['lin_ve'].append(lin_ve)
-        self.data['lin_ve2'].append(lin_ve2)
         self.data['ep'].append(ep)
         self.data['ek'].append(ek)
         self.data['total_en'].append(total_en)
         self.data['factor'].append(velocity / omega)
+        self.data['h'].append(h)
 
         return x, y
 
 
+def val_matrix_to_color_matrix(arr):
+    arr = arr[:, :, np.newaxis]
+    high = arr.max()
+    low = arr.min()
+    arr = (arr - low) / high
+    color = (1 - arr) * (1, 0, 0)
+    print(color.shape)
+    return color
+
+
+def pendulum_gradient(rope=1, step_size=0.001, friction=0):
+    N = 50
+    T = 5
+    vec = (np.arange(N) - N / 2) / N * T * 2
+    vec_x = vec
+    vec_y = vec
+    X, Y = np.meshgrid(vec_x, vec_y)
+    arr = np.stack([X, -Y], axis=-1)
+
+    plt.figure()
+    scale = 0.0001
+    U = np.zeros((N, N))
+    V = np.zeros((N, N))
+    C = np.zeros((N, N))
+    for row_ind, row in enumerate(arr):
+        for col_ind, (this_th, this_om) in enumerate(row):
+            omega = this_om * (1 - friction) - GRAV / rope * math.sin(this_th) * step_size
+            theta = this_th + omega * step_size
+
+            om_change = (this_om - omega) * scale
+            th_change = (this_th - theta) * scale
+
+            # plt.arrow(this_th, this_om, th_change, om_change, head_width=0.3, head_length=0.3,
+            #           length_includes_head=True)
+            U[row_ind, col_ind] = th_change
+            V[row_ind, col_ind] = om_change
+            C[row_ind, col_ind] = abs(om_change) + abs(th_change)
+
+    # C = val_matrix_to_color_matrix(C)
+    plt.quiver(X, Y, U, V, C, cmap="ocean_r", width=0.001)
+    plt.xlabel("Theta")
+    plt.ylabel("Omega")
+    plt.title("Pendulum gradient")
+    plt.show()
+
+
 "Model Creation"
-center = (0, 0)
-model = Model(*center, mass=1, rope=5, initial_theta=math.radians(90), initial_omega=0, stepsize=.04, friction=0)
-initial = model.x, model.y
-all_trace = []
-offset_x = 300
-offset_y = 300
 
-for ti in range(200):
-    array = np.zeros((600, 600, 3), dtype=np.uint8) + 170
-    step = model.step()
-    all_trace.append(step)
+RENDER = False
+
+
+def simulate_pendulum():
+    center = (0, 0)
+    model = Model(*center, mass=1, rope=5, initial_theta=math.radians(90), initial_omega=0.0, stepsize=0.01,
+                  friction=0.001)
+    # initial = model.x, model.y
+    all_trace = []
+    offset_x = 300
+    offset_y = 300
+
+    for ti in range(5_000):
+        step = model.step()
+        all_trace.append(step)
+
+        if RENDER:
+            array = np.zeros((600, 600, 3), dtype=np.uint8) + 170
+            trace = list([*zip(*all_trace)])
+            poly = np.array(all_trace[-30:])
+            poly[:, 1] *= -1
+            poly[:, :] *= 50
+            poly[:, :] += 300
+            x, y = step
+            x = int(x * 50) + 300
+            y = int(-y * 50) + 300
+
+            cv2.line(array, (offset_x, offset_y), (x, y), (0, 0, 0), 2)  # Line
+            cv2.circle(array, (offset_x, offset_y), 10, (0, 0, 160), -1)  # Anchor
+            for n, tr in enumerate(poly):
+                tr = np.array(tr, dtype=np.int32)
+                col = np.array([50, 200, 0]) * (n / 30)
+                cv2.circle(array, tuple(tr), 8, col, -1)
+            cv2.circle(array, (x, y), 10, (250, 100, 50), -1)  # Ball
+            cv2.putText(array, f"{ti:,}", (50, 50), cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), )
+            cv2.imshow("Pendulum", array)
+
+            key = cv2.waitKey(1)
+            if key == ord("q"):
+                break
+
     trace = list([*zip(*all_trace)])
-    poly = np.array(all_trace[-30:])
-    poly[:, 1] *= -1
-    poly[:, :] *= 50
-    poly[:, :] += 300
-    x, y = step
-    x = int(x * 50) + 300
-    y = int(-y * 50) + 300
 
-    cv2.line(array, (offset_x, offset_y), (x, y), (0, 0, 0), 2)  # Line
-    cv2.circle(array, (offset_x, offset_y), 10, (0, 0, 160), -1)  # Anchor
-    for n, tr in enumerate(poly):
-        tr = np.array(tr, dtype=np.int32)
-        col = np.array([50, 200, 0]) * (n / 30)
-        cv2.circle(array, tuple(tr), 8, col, -1)
-    cv2.circle(array, (x, y), 10, (250, 100, 50), -1)  # Ball
+    fig1 = plt.figure()
+    plt.title("Pendulum energy state")
+    plt.plot(model.data['total_en'], label="total en")
+    plt.plot(model.data['ek'], label="kinetic")
+    plt.plot(model.data['ep'], label="potential")
+    ticks = plt.xticks()[0]
+    plt.xticks(np.linspace(ticks[0], ticks[-1], 15))
+    plt.legend(loc=1)
 
-    cv2.imshow("Pendulum", array)
+    fig2 = plt.figure()
+    ax1 = plt.axes([0.1, 0.05, 0.8, 0.6])
+    ax2 = plt.axes([0.1, 0.7, 0.8, 0.2])
 
-    key = cv2.waitKey(5)
-    if key == ord("q"):
-        break
+    # ax1.plot(model.data['veloc'], label="velocity (from mgh)", c='r')
+    ax1.plot(model.data['lin_ve'], label="lin_ve", c=(1, 0, 0.7), linewidth=1)
+    # ax1.plot(model.data['lin_ve2'], label="lin_ve2", c=(0.5, 0.5, 1), dashes=[10, 5, 5, 5], linewidth=3)
+    ax1.plot(model.data['omega'], label="omega", linewidth=1)
+    # ax1.plot(model.data['radial'], label="radial")
+    # ax1.plot(model.data['radial_deg'], label="radial_deg")
+    # ax1.plot(model.data['factor'], label="factor")
 
-trace = list([*zip(*all_trace)])
+    # ax1.set_xticks(np.arange(0, 250, 10.0))
+    # ax2.set_xticks(np.arange(0, 250, 10.0))
+    plt.title("Position and speed")
+    ax1.legend()
 
-fig1 = plt.figure()
-plt.title("Pendulum energy state")
-plt.plot(model.data['total_en'], label="total en")
-plt.plot(model.data['ek'], label="kinetic")
-plt.plot(model.data['ep'], label="potential")
-plt.legend(loc=1)
+    ax2.plot(model.data['theta_deg'], label="theta degrees")
+    ax2.legend()
 
-fig2 = plt.figure()
-ax1 = plt.axes([0.1, 0.05, 0.8, 0.6])
-ax2 = plt.axes([0.1, 0.7, 0.8, 0.2])
+    plt.figure()
+    # plt.subplot(312)
+    plt.plot(model.data['x'], label="x", )
+    plt.plot(model.data['y'], label='y', c=[1, 0.2, .6])
+    plt.plot(model.data['h'], label='h', dashes=[4, 4, 2, 4], c=[1, 0.2, .6])
 
-ax1.plot(model.data['veloc'], label="velocity (from mgh)", c='r')
-ax1.plot(model.data['lin_ve'], label="lin_ve", c=(1, 1, 0.1), dashes=[10, 5], linewidth=3)
-ax1.plot(model.data['lin_ve2'], label="lin_ve2", c=(0.5, 0.5, 1), dashes=[10, 5, 5, 5], linewidth=3)
-ax1.plot(model.data['omega'], label="omega", dashes=[8, 5], linewidth=3)
-# ax1.plot(model.data['radial'], label="radial")
-# ax1.plot(model.data['radial_deg'], label="radial_deg")
-# ax1.plot(model.data['factor'], label="factor")
-plt.plot()
-ax1.legend()
+    ticks = plt.xticks()[0]
+    plt.xticks(np.linspace(ticks[0], ticks[-1], 15))
+    plt.legend()
 
-ax2.plot(model.data['theta_deg'], label="theta degrees")
-ax2.legend()
+    plt.show()
 
-plt.figure()
-plt.subplot(312)
-plt.plot(model.data['x'], label="x")
-plt.plot(model.data['y'], label='y')
-plt.legend()
 
-plt.show()
+pendulum_gradient()
