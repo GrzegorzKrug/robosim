@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 import math
 import cv2
 
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+# from matplotlib.backends.backend_agg import FigureCanvasAgg
+from collections import deque
 from matplotlib import style
 
 style.use("Solarize_Light2")
@@ -12,7 +12,7 @@ style.use("Solarize_Light2")
 GRAV = 9.81
 
 
-class Model:
+class SinglePendulum:
     def __init__(self, cx, cy, mass=1, rope=5, initial_theta=1.0, initial_omega=0.0, friction=0.5, step_size=1.0):
         """"""
         "Params"
@@ -37,15 +37,12 @@ class Model:
                 "omega": [],
                 "veloc": [],
                 "lin_ve": [],
-                # "lin_ve2": [],
                 "radial": [],
-                "radial_deg": [],
                 "x": [],
                 "y": [],
                 "ep": [],
                 "ek": [],
                 "total_en": [],
-                "factor": [],
                 "h": [],
         }
         "Initialization"
@@ -67,21 +64,23 @@ class Model:
         omega_old = self.omega
 
         omega = omega_old * (1 - self.friction) - GRAV / self.rope * math.sin(theta_old) * step_size
-        theta = theta_old + omega * step_size  # % 360
-
-        # theta = (theta_old + omega_old * step_size)  # % 360
-        # omega = omega_old * (1 - self.friction) - GRAV / self.rope * math.sin(theta) * step_size
+        theta = theta_old + omega * step_size
 
         self.omega = omega
         self.theta = theta
+        self.save_data()
+
+    def save_data(self):
+        theta = self.theta
+        omega = self.omega
 
         theta_deg = math.degrees(theta)
-        x, y = self.position_on_arc(theta)
 
         self.data['theta_deg'].append(theta_deg)
         self.data['theta'].append(theta)
         self.data['omega'].append(omega)
 
+        x, y = self.position_on_arc(theta)
         self.data['x'].append(x)
         self.data['y'].append(y)
 
@@ -89,17 +88,9 @@ class Model:
                 2 * GRAV * self.rope * abs(math.cos(theta) - math.cos(self.initial_theta))
         )
 
-        # velocity = math.sqrt(
-        #         2 * GRAV * self.rope * abs(math.cos(theta) - math.cos(self.initial_theta))
-        # )
-
-        lin_ve = abs((theta / step_size - theta_old / step_size) * self.rope)
         lin_ve = omega * self.rope
-        # lin_ve = velocity
-
         h = self.rope * (1 - math.cos(theta))
 
-        # print(math.cos(math.radians(89)))
         ep = self.mass * GRAV * h
         ek = (1 / 2) * self.mass * (lin_ve ** 2)
         total_en = ep + ek
@@ -109,7 +100,99 @@ class Model:
         self.data['ep'].append(ep)
         self.data['ek'].append(ek)
         self.data['total_en'].append(total_en)
-        self.data['factor'].append(velocity / omega)
+        self.data['h'].append(h)
+
+        return x, y
+
+
+class DoublePendulum:
+    def __init__(self, cx, cy, mass=1, rope=5, initial_theta=1.0, initial_omega=0.0, friction=0.5, step_size=1.0):
+        """"""
+        "Params"
+        self.anchor = cx, cy
+        self.mass = mass
+        self.rope = rope
+        self.friction = friction
+
+        "Starting params"
+        self.theta = initial_theta
+        self.initial_theta = initial_theta
+        self.omega = initial_omega
+        self.time = 0
+        self.time0 = 0
+        "Sim params"
+
+        self.step_size = step_size
+        "Collect Data"
+        self.data = {
+                "theta": [],
+                "theta_deg": [],
+                "omega": [],
+                "veloc": [],
+                "lin_ve": [],
+                "radial": [],
+                "x": [],
+                "y": [],
+                "ep": [],
+                "ek": [],
+                "total_en": [],
+                "h": [],
+        }
+        "Initialization"
+        self.x, self.y = self.position_on_arc(initial_theta)
+
+    def position_on_arc(self, theta):
+        x, y = self.anchor
+
+        x = x + self.rope * np.sin(theta)
+        y = y - self.rope * np.cos(theta)
+        return x, y
+
+    def step(self, step_size=None):
+        if not step_size:
+            step_size = self.step_size
+        self.time += step_size
+
+        theta_old = self.theta
+        omega_old = self.omega
+
+        omega = omega_old * (1 - self.friction) - GRAV / self.rope * math.sin(theta_old) * step_size
+        theta = theta_old + omega * step_size
+
+        self.omega = omega
+        self.theta = theta
+        self.save_data()
+
+    def save_data(self):
+        theta = self.theta
+        omega = self.omega
+
+        theta_deg = math.degrees(theta)
+
+        self.data['theta_deg'].append(theta_deg)
+        self.data['theta'].append(theta)
+        self.data['omega'].append(omega)
+
+        x, y = self.position_on_arc(theta)
+        self.data['x'].append(x)
+        self.data['y'].append(y)
+
+        velocity = math.sqrt(
+                2 * GRAV * self.rope * abs(math.cos(theta) - math.cos(self.initial_theta))
+        )
+
+        lin_ve = omega * self.rope
+        h = self.rope * (1 - math.cos(theta))
+
+        ep = self.mass * GRAV * h
+        ek = (1 / 2) * self.mass * (lin_ve ** 2)
+        total_en = ep + ek
+
+        self.data['veloc'].append(velocity)
+        self.data['lin_ve'].append(lin_ve)
+        self.data['ep'].append(ep)
+        self.data['ek'].append(ek)
+        self.data['total_en'].append(total_en)
         self.data['h'].append(h)
 
         return x, y
@@ -157,6 +240,7 @@ def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.00
             C[row_ind, col_ind] = abs(om_change) + abs(th_change)
 
     plt.pcolormesh(X, Y, C, shading='auto')
+    # plt.contourf(X, Y, C)
 
     dot = None
     for num in range(-T, T + 1):
@@ -188,18 +272,18 @@ def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.00
 def simulate_pendulum(gradient_ax=None, friction=0.0, time_range=1000, step_size=0.01,
                       initial_theta=0.0, initial_omega=0.0):
     center = (0, 0)
-    model = Model(*center, mass=1, rope=3, initial_theta=initial_theta, initial_omega=initial_omega,
-                  step_size=step_size,
-                  friction=friction)
+    model = SinglePendulum(*center, mass=1, rope=3, initial_theta=initial_theta, initial_omega=initial_omega,
+                           step_size=step_size,
+                           friction=friction)
     # initial = model.x, model.y
     all_trace = []
     offset_x = 300
     offset_y = 300
 
     for ti in range(time_range):
-        step = model.step()
-        all_trace.append(step)
-
+        model.step()
+        x, y = model.data['x'], model.data['y']
+        all_trace.append([x, y])
         if RENDER:
             array = np.zeros((600, 600, 3), dtype=np.uint8) + 170
             trace = list([*zip(*all_trace)])
@@ -207,7 +291,6 @@ def simulate_pendulum(gradient_ax=None, friction=0.0, time_range=1000, step_size
             poly[:, 1] *= -1
             poly[:, :] *= 50
             poly[:, :] += 300
-            x, y = step
             x = int(x * 50) + 300
             y = int(-y * 50) + 300
 
