@@ -264,8 +264,6 @@ def run_simulation_pendulum(name=None, gradient_ax=None, friction=0.0, time_rang
         c[1] = c[1] * 0.4 + 0.5
         gradient_ax.plot(model.data['theta'], omg, label=name, color=c)
         gradient_ax.legend(loc=1)
-        fig = gradient_ax.figure
-        fig.savefig("Pendulum path.jpg")
 
 
 friction = 0.4
@@ -290,5 +288,7 @@ run_simulation_pendulum(f"Pendulum2 {step_size * 10}", ax,
 run_simulation_pendulum(f"Pendulum3 {step_size / 10}", ax,
                         friction=friction, time_range=time_range * 10, step_size=step_size / 10,
                         initial_theta=initial_theta, initial_omega=initial_omega)
+fig = ax.figure
+fig.savefig("pendulum.jpg")
 
 plt.show()
