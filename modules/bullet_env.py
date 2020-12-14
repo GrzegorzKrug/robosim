@@ -3,10 +3,11 @@ import pybullet as p
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import math
 import os
 
 
-def separate(n=10):
+def separate_lines(n=10):
     print("\n" * n)
 
 
@@ -19,7 +20,7 @@ cubePos = [0, 0, 1]
 cubeRot = p.getQuaternionFromEuler([0, 0, 0])
 plane = p.loadURDF("plane.urdf")
 
-robot_pos = [0, 0, 0]
+robot_pos = [-1, 1, 0]
 pirad = np.pi / 2
 robot_rot = p.getQuaternionFromEuler([2 * pirad, 0, 0])
 robot_rot = p.getQuaternionFromEuler([0, 0, 0])
@@ -58,12 +59,12 @@ joint_info = p.getJointInfo(robot, joint_index)
 # print("Parent link index: {}".format(joint_info[16]))
 
 # print state of joint 2
-separate()
+separate_lines()
 joints_index_list = range(nb_joints)
 joints_state_list = p.getJointStates(robot, joints_index_list)
 print(f"JOINTS INDEX LIST", joints_index_list)
 print(f"All joints state list: \n{joints_state_list}")
-separate(4)
+separate_lines(4)
 
 print("Joint position: {}".format(joints_state_list[joint_index][0]))
 print("Joint velocity: {}".format(joints_state_list[joint_index][1]))
@@ -84,36 +85,76 @@ print("Link frame orientation: {}".format(link_state_list[5]))
 p.setGravity(0, 0, -9.81)
 
 # define a target angle position for each joint (note, you can also control by velocity or torque)
+HOME = np.array([-1, 0, 0, 0, 0, 0, 0, 0])
 p.setJointMotorControlArray(robot, joints_index_list, p.POSITION_CONTROL,
-                            targetPositions=[-1, 0, -0.5, 1, 1, 0, 0, 0])
-
+                            targetPositions=HOME)
 pos = []
 vel = []
 torq = []
+targs = []
 
-for step in range(500):
+TRAJECTORY_6dof = [
+    [math.radians(-10), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(90), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(30), math.radians(70), math.radians(0), math.radians(50), math.radians(60)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(90), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(90), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+
+    [math.radians(20), math.radians(-10), math.radians(-10), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(30), math.radians(-40), math.radians(-40), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(40), math.radians(-50), math.radians(50), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(90), math.radians(-60), math.radians(90), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+    [math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0), math.radians(0)] ,
+]
+print(f" Target list: {TRAJECTORY_6dof}")
+
+target = TRAJECTORY_6dof.pop(0)
+delay_new_step = 50
+count_dur = 0  # Counts stop duration in sim steps
+
+for step in range(2000):
     p.stepSimulation()
-    # time.sleep(1 / 60)  # slow down the simulation
+    time.sleep(1 / 120)  # slow down the simulation
+    
+    target_8dof = target + [0, 0]
+    # print(f"target: {target}")
 
-    if step == 100:
-        p.setJointMotorControlArray(robot, joints_index_list, p.POSITION_CONTROL,
-                                    targetPositions=[0.3, 0.2, -0.5, 0, 1, 0, 1, 0])
-    elif step == 200:
-        p.setJointMotorControlArray(robot, joints_index_list, p.POSITION_CONTROL,
-                                    targetPositions=[0.6, -0.4, -1, 1, 1, 0, -1, 0])
-    elif step == 300:
-        p.setJointMotorControlArray(robot, joints_index_list, p.POSITION_CONTROL,
-                                    targetPositions=[-1, -0.3, -1, -1, 1, 0, 0, 0])
+    p.setJointMotorControlArray(robot, joints_index_list, p.POSITION_CONTROL,
+                                    targetPositions=target_8dof)
 
     joints_state_list = p.getJointStates(robot, joints_index_list)
     joints_state_list = np.array(joints_state_list, dtype=object)
-    pos.append(joints_state_list[:6, 0])
-    vel.append(joints_state_list[:6, 1])
+
+    current_total_speed = np.array(joints_state_list[:6, 1])
+    current_total_speed = np.absolute(current_total_speed).sum()
+
+    vel.append(joints_state_list[:6, 0])
+    pos.append(joints_state_list[:6, 1])
     torq.append(joints_state_list[:6, 3])
+    targs.append(target)
+    if current_total_speed < 0.1 and delay_new_step <= step:
+        count_dur += 1
+        if count_dur >= 10:
+            try:
+                target  = TRAJECTORY_6dof.pop(0)
+                delay_new_step = step + 50
+                count_dur = 0
+            except Exception:
+                print("No more points to go")
+                break
+    else:
+        count_dur = 0
 
 pos = [*zip(*pos)]
 vel = [*zip(*vel)]
 torq = [*zip(*torq)]
+targs = [*zip(*targs)]
+
 time_range = np.arange(len(vel[0])) / 240
 colors = [
         [0.7, 0, 0],
@@ -122,24 +163,30 @@ colors = [
         [0.6, 0.6, 0],
         [0, 0.6, 0.6],
         [1, 0, 0.6],
+        [0.4, 0, 0.1],
+        [0.4, 0, 0.6],
 ]
-separate()
+
+separate_lines()
+
 plt.figure(figsize=(16, 9))
-ax1 = plt.subplot(311)
-ax2 = plt.subplot(312)
-ax3 = plt.subplot(313)
-for num, (_pos, _vel, _torq) in enumerate(zip(pos, vel, torq), 1):
+ax1 = plt.subplot(211)
+ax2 = plt.subplot(212)
+# ax3 = plt.subplot(313)
+for num, (_pos, _vel, _torq, _targs) in enumerate(zip(pos, vel, torq, targs), 1):
     c = colors[num - 1]
     ax1.plot(time_range, _vel, label=f"{num}", c=c)
+    ax1.plot(time_range, _targs, label=f"targ-{num}", c=c, dashes=[4,2])
+
     ax2.plot(time_range, _pos, label=f"{num}", c=c)
-    ax3.plot(time_range, _torq, label=f"{num}", c=c)
+    #ax3.plot(time_range, _torq, label=f"{num}", c=c)
 
 ax1.legend()
 ax1.set_title("Position")
 ax2.legend()
 ax2.set_title("Velocity")
-ax3.legend()
-ax3.set_title("Torque")
+#ax3.legend()
+#ax3.set_title("Torque")
 plt.suptitle("Kuka Manipulator")
 plt.subplots_adjust(hspace=0.3)
 
