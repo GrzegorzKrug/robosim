@@ -14,3 +14,6 @@ lxml==4.6.2
 PyOpenGL==3.1.0
 pyrender==0.1.43
 urdfpy==0.0.22
+numpy-quaternion==2020.11.2.17.0.49
+numpy-stl==2.13.0
+
