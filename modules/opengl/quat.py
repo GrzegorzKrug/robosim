@@ -32,24 +32,18 @@ def get_texture_from_string(text):
 
 
 def render_axis():
-    #glPushMatrix()
-    glMatrixMode(GL_MODELVIEW)
-    #viewPort = glGetIntegerv(GL_VIEWPORT)  # [0, 0, width, hegith]
-    model = glGetDoublev( GL_MODELVIEW_MATRIX).T
-    #proj = glGetDoublev( GL_PROJECTION_MATRIX)
-    print("mod:\n", model)
-
-
-    #gluLookAt(10, 10, 0, 0, 0, 0, 0, 0, 1)
+    glPushMatrix()
+    #glMatrixMode(GL_MODELVIEW)
+    #model = glGetDoublev( GL_MODELVIEW_MATRIX).T
 
     "Params"
     glLineWidth(3.0)
     ax_len = 10
-
     glBegin(GL_LINES)
+
     "OFFSET"
-    xoff, yoff, zoff = -3, 0, -5
-    if False:
+    xoff, yoff, zoff = 0, 0, 0
+    if True:
         "X RED"
         glColor(1,0,0)
         glVertex3f(xoff, yoff, zoff)
@@ -57,15 +51,14 @@ def render_axis():
         "Y GREEN"
         glColor(0,1,0)
         glVertex3f(xoff, yoff, zoff)
-        glVertex3f(xoff, yoff, zoff+ax_len)
+        glVertex3f(xoff, yoff+ax_len, zoff)
         "Z Blue"
         glColor(0,0,1)
         glVertex3f(xoff, yoff, zoff)
-        glVertex3f(xoff, yoff+ax_len, zoff)
+        glVertex3f(xoff, yoff, zoff+ax_len)
     else:
+        "Mini model try"
         st = model[(0,2,1), -1] + [0, -20, 0]
-        print("start")
-        print(st)
 
         "X RED"
         glColor(1,0,0)
@@ -86,7 +79,22 @@ def render_axis():
         glVertex3f(*end)
 
     glEnd()
-    #glPopMatrix()
+    glPopMatrix()
+
+def render_plane(verts):
+    glPushMatrix()
+    #glMatrixMode(GL_MODELVIEW)
+    
+    glLineWidth(1)
+    glBegin(GL_LINES)
+    glColor(0.8,0.8,0.8)
+
+    for vert in verts:
+        glVertex3f(*vert[0])
+        glVertex3f(*vert[1])
+
+    glEnd()
+    glPopMatrix()
 
 
 def main():
@@ -94,55 +102,33 @@ def main():
 
     display = (1200, 700)
     pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
-
     gluPerspective(45, (display[0]/display[1]), 0.1, 500.0)
-    
-    #glRotatef(90, -1, 0, 0)
-    #glTranslatef(0, -20, 0)
-    gluLookAt(0, 20, 0, 0,0,0, 0,0,1)
-    #glLineWidth(3.0)
     glEnable(GL_DEPTH_TEST)
+    
+    #glRotate(90, 1, 0, 0)
+    #glTranslate(10, -0, 5)
+    gluLookAt(-5,15,10, 0,0,0, 0,0,1)
+    N = 20
+    pts = 20
+    
+    plane = []
+    for val in np.linspace(-N/2, N/2, pts):
+        plane.append([(-N/2, val, 0),(N/2, val, 0)])
+        plane.append([(val, -N/2, 0),(val, N/2, 0)])
+    #print(plane)
 
-    sh1 = Tube(size=2, precision=15)
-    sh1.translate([-15, 0, 0])
-    c2 = Cube(size=5)
-    c3 = Cube(size=5)
-
-    sh1.edge_color = (1,1,1)
-
-    t1 = Tube(size=50, radius=0.5, precision=15)
-    t2 = Tube(size=40, radius=1, precision=15)
-    t3 = Tube(size=30, radius=2, precision=20)
-    t4 = Tube(size=20, radius=4, precision=40)
-    t5 = Tube(size=10, radius=6, precision=10)
-
-    #t1.translate([-8, 8, 0])
-    #t2.translate([-7, 7, 0])
-    #t3.translate([-6, 6, 0])
-    #t4.translate([-4, 4, 0])
-    #t5.translate([0, 0, 0])
-
-    fr = 2 
     end_it = False
-    face_colors = [
-        (0, 0.6, 1),
-        (0.4, 0, 1),
-        (0.3, 0.8, 0.7),
-        (1,   0.1,   0.7),
-        (1,   0.7,   0.1),
-        (0.6,   0.3,   0.3),
-    ]
-    #face_colors = list(np.random.random((35,3)))
     pause = False
     while True and not end_it:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         render_axis()
-
+        render_plane(plane)
+        glRotate(0.1, 0,0,1)
+        #gluLookAt(-0.1,0.1,0.1, 0,0,0, 0,0,1)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_it = True
                 break
-
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_ESCAPE, pygame.K_q):
                     end_it = True
@@ -150,22 +136,18 @@ def main():
                 if event.key == pygame.K_SPACE:
                     pause ^= True
 
-
                 if event.key == pygame.K_UP:
-                    glTranslate(0, 5, 0)
-                    #sh1.rotate([ang, 0, 0])
+                    glTranslate(0, 0, 1)
                 elif event.key == pygame.K_DOWN:
-                    glTranslate(0, -5, 0)
-                    #sh1.rotate([-ang, 0, 0])
+                    glTranslate(0, 0, -1)
                 elif event.key == pygame.K_LEFT:
-                    glTranslate(-5, 0, 0)
-                    #sh1.rotate([0, -ang, 0])
+                    glTranslate(-2, 0, 0)
                 elif event.key == pygame.K_RIGHT:
-                    glTranslate(5, 0, 0)
-                    #sh1.rotate([0, ang, 0])
-                    #sh1.rotate([0, 0, ang])
-                #elif event.key == pygame.K_COMMA:
-                    #sh1.rotate([0, 0, -ang])
+                    glTranslate(2, 0, 0)
+                elif event.key == pygame.K_KP_PLUS:
+                    glTranslate(0, 1, 0)
+                elif event.key == pygame.K_KP_MINUS:
+                    glTranslate(0,-1, 0)
 
                 ang = 15 
                 if event.key == pygame.K_KP8:
@@ -182,38 +164,9 @@ def main():
                     glRotatef(15, 1, 0, 0)
 
         if pause == True:
-            pygame.time.wait(50)
+            pygame.time.wait(1000)
             continue
 
-        c2.rotate([0.4, 0.1, 0.7])
-        c3.rotate([0.4, 2, 0.1])
-        sym = (t1, t2, t3, t4, t5)
-        for ind, _t in enumerate(sym):
-            _t.pos = (math.sin(time.time()/(ind+1))*ind, -math.sin(time.time()/(ind+1))*ind, 0)
-            _t.set_rotation([0, 0, (time.time()*6*(5+ind))])
-            _t.rotate([0, 90, -45])
-            #_t.rotate([0, 0, time.time()*30])
-
-        #sh1.draw(face_colors=face_colors)
-        #c2.draw(face_colors=face_colors)
-        #c3.draw(face_colors=face_colors)
-        
-        t1.draw(face_colors=face_colors)
-        t2.draw(face_colors=face_colors)
-        #t3.draw(face_colors=face_colors)
-        #t4.draw(face_colors=face_colors)
-        #t5.draw(face_colors=face_colors)
-
-        #"Draw texture"
-        #ttx = get_texture_from_string("Hello")
-        #glBegin(GL_QUADS)
-        #glColor3fv((0,0.5,1))
-        #glVertex3fv([-fr, -fr, 0])   
-        #glVertex3fv([ fr, -fr, 0])   
-        #glVertex3fv([ fr,  fr, 0])   
-        #glVertex3fv([-fr,  fr, 0])   
-        #glBindTexture(GL_TEXTURE_2D, ttx)
-        #glEnd()
 
         pygame.display.flip()
         pygame.time.wait(10)
