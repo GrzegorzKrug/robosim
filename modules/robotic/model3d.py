@@ -316,14 +316,14 @@ class Model3D:
             text = f"base {key}" if not seg.name else seg.name
             self._draw_axis(ax, transf, text=text, *args, **kwargs)
 
-        ax.set_xlim([-5, 5])
-        ax.set_ylim([-5, 5])
-        ax.set_zlim([-1, 5])
+        ax.set_xlim([-2, 2])
+        ax.set_ylim([-2, 2])
+        ax.set_zlim([0, 2])
         ax.view_init(15, 110)
         plt.show(block=block)
 
     @staticmethod
-    def _draw_axis(ax, transf, ax_size=1, line_width=5, text=None):
+    def _draw_axis(ax, transf, ax_size=1, line_width=3, text=None):
         "Draw axis for univeral styling"
         points_pairs = np.array([
             [0, 0, 0, 1], [ax_size, 0, 0, 1],
