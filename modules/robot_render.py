@@ -56,9 +56,11 @@ def main():
 
     display = (1200, 700)
     pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
+    glMatrixMode(GL_PROJECTION)
     gluPerspective(45, (display[0]/display[1]), 0.1, 500.0)
+
     glEnable(GL_DEPTH_TEST)
-    
+    glMatrixMode(GL_MODELVIEW)
     robot_dir = os.path.join("kuka_experimental", "kuka_kr3_support")
 
     #collision = os.path.abspath(
@@ -86,9 +88,13 @@ def main():
 
     stl1_vis = mesh.Mesh.from_file(stl1_vis)
 
-    #glRotate(90, 1, 0, 0)
-    #glTranslate(10, -0, 5)
-    gluLookAt(0,2,0.4, 0,0,0, 0,0,1)
+    glRotate(-90, 1, 0, 0)
+    glRotate(90, 0, 0, 1)
+    glRotate(15, 0, -1, 0)
+    glTranslate(1, 0, -0.5)
+    glPushMatrix()
+
+    #gluLookAt(0,2,0.4, 0,0,0, 0,0,1)
     N = 20
     pts = 20
     
@@ -101,40 +107,6 @@ def main():
     end_it = False
     pause = False
     while True and not end_it:
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        render_axis(offset=[0,0,0])
-        render_plane(plane)
-        glRotate(0.3, 0,0,1)
-        #gluLookAt(-0.1,0.1,0.1, 0,0,0, 0,0,1)
-
-        "Draw robot skeleton"
-        transf = robot.get_transformations()
-        glPushMatrix()
-        glLineWidth(1)
-        prev = [0,0,0,0]
-
-        for stl_mesh, key in zip([stl1_vis], range(1, len(transf))):
-            glBegin(GL_LINES)
-            trf = transf.get(key)
-            point = np.dot(trf, [0,0,0,1])
-            glColor(1,0.6,0)
-            glVertex3f(*prev[:3])
-            glVertex3f(*point[:3])
-            prev = point
-
-            "Mesh render"
-            glColor(0.8,0.7,0)
-            vect = stl1_vis.vectors
-            glEnd()
-            glTranslate(*trf[:3, 3])
-            glBegin(GL_LINES)
-            for vex in vect:
-                for pt in vex:
-                    glVertex3f(*pt)
-                glVertex3f(*vex[0])
-        glEnd()
-        glPopMatrix()
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 end_it = True
@@ -146,37 +118,98 @@ def main():
                 if event.key == pygame.K_SPACE:
                     pause ^= True
 
+                model = glGetDoublev(GL_MODELVIEW_MATRIX)
+                """
+                GL_MODELVIEW_MATRIX
+                Matrix describes BA Transform
+                """
+                rot = model[:3, :3]
+                step = 0.5
                 if event.key == pygame.K_UP:
-                    glTranslate(0, 1, 0)
+                    pt = np.dot(rot, (0,0,step))
+                    pt[2] = 0
+                    glTranslate(*pt)
                 elif event.key == pygame.K_DOWN:
-                    glTranslate(0,-1, 0)
+                    pt = np.dot(rot, (0,0,-step))
+                    pt[2] = 0
+                    glTranslate(*pt)
                 elif event.key == pygame.K_LEFT:
-                    glTranslate(-2, 0, 0)
+                    pt = np.dot(rot, (step,0,0))
+                    pt[2] = 0
+                    glTranslate(*pt)
                 elif event.key == pygame.K_RIGHT:
-                    glTranslate(2, 0, 0)
+                    pt = np.dot(rot, (-step,0,0))
+                    pt[2] = 0
+                    glTranslate(*pt)
                 elif event.key == pygame.K_KP_PLUS:
-                    glTranslate(0, 0, 1)
+                    glTranslate(0, 0, -step)
                 elif event.key == pygame.K_KP_MINUS:
-                    glTranslate(0, 0,-1)
+                    glTranslate(0, 0,step)
 
                 ang = 15 
                 if event.key == pygame.K_KP8:
-                    glRotatef(15, 0, -1, 0)
+                    glRotatef(ang, 0, -1, 0)
                 elif event.key == pygame.K_KP2:
-                    glRotatef(15, 0, 1, 0)
+                    glRotatef(ang, 0, 1, 0)
                 elif event.key == pygame.K_KP4:
-                    glRotatef(15, 0, 0, -1)
+                    glRotatef(ang, 0, 0, 1)
+                elif event.key == pygame.K_KP5:
+                    pass
+                    glPopMatrix()
+                    glPushMatrix()
+                    #gluLookAt(5,0,2, 0,0,0, 0,0,1)
                 elif event.key == pygame.K_KP6:
-                    glRotatef(15, 0, 0, 1)
+                    glRotatef(ang, 0, 0, -1)
                 elif event.key == pygame.K_KP7:
-                    glRotatef(15, -1, 0, 0)
+                    glRotatef(ang, -1, 0, 0)
                 elif event.key == pygame.K_KP9:
-                    glRotatef(15, 1, 0, 0)
+                    glRotatef(ang, 1, 0, 0)
 
         if pause == True:
-            pygame.time.wait(1000)
+            pygame.time.wait(300)
             continue
+        "END EVENTS"
 
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        render_axis()
+        render_plane(plane)
+        
+        glMatrixMode(GL_MODELVIEW)
+        glRotate(0.1, 0,0,1)
+
+        "Draw robot skeleton"
+        transf = robot.get_transformations()
+        glPushMatrix()
+        prev = [0,0,0,0]
+
+        for stl_mesh, key in zip([stl1_vis], range(1, len(transf))):
+            
+            glDisable(GL_DEPTH_TEST)
+            glLineWidth(15)
+            glColor(1,0.6,0)
+
+            glBegin(GL_LINES)
+            trf = transf.get(key)
+            point = np.dot(trf, [0,0,0,1])
+            glVertex3f(*prev[:3])
+            glVertex3f(*point[:3])
+            prev = point
+            glEnd()
+ 
+            "Mesh render"
+            glEnable(GL_DEPTH_TEST)
+            glColor(0.1,0.7,1)
+            vect = stl1_vis.vectors
+            glLineWidth(1)
+            glTranslate(*trf[:3, 3])
+            #glRotate(30,0,1,0)
+            glBegin(GL_LINES)
+            for vex in vect:
+                for pt in vex:
+                    glVertex3f(*pt)
+                glVertex3f(*vex[0])
+        glEnd()
+        glPopMatrix()
 
         pygame.display.flip()
         pygame.time.wait(10)
