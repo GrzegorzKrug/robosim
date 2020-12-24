@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 import math
 import time
@@ -90,8 +90,8 @@ def main():
 
     glRotate(-90, 1, 0, 0)
     glRotate(90, 0, 0, 1)
-    glRotate(15, 0, -1, 0)
     glTranslate(1, 0, -0.5)
+    glRotate(15, 0, -1, 0)
     glPushMatrix()
 
     #gluLookAt(0,2,0.4, 0,0,0, 0,0,1)
@@ -122,23 +122,30 @@ def main():
                 """
                 GL_MODELVIEW_MATRIX
                 Matrix describes BA Transform
+                M.T = AB+P
+                model.T = T_VA
+                model.T = Transformv_Visual_Absolute
                 """
                 rot = model[:3, :3]
                 step = 0.5
                 if event.key == pygame.K_UP:
                     pt = np.dot(rot, (0,0,step))
+                    pt[1] = pt[1] / (1-pt[2])
                     pt[2] = 0
                     glTranslate(*pt)
                 elif event.key == pygame.K_DOWN:
                     pt = np.dot(rot, (0,0,-step))
+                    pt[1] = pt[1] / (1-pt[2])
                     pt[2] = 0
                     glTranslate(*pt)
                 elif event.key == pygame.K_LEFT:
                     pt = np.dot(rot, (step,0,0))
+                    pt[0] = pt[0] / (1-pt[2])
                     pt[2] = 0
                     glTranslate(*pt)
                 elif event.key == pygame.K_RIGHT:
                     pt = np.dot(rot, (-step,0,0))
+                    pt[0] = pt[0] / (1-pt[2])
                     pt[2] = 0
                     glTranslate(*pt)
                 elif event.key == pygame.K_KP_PLUS:
@@ -175,7 +182,7 @@ def main():
         render_plane(plane)
         
         glMatrixMode(GL_MODELVIEW)
-        glRotate(0.1, 0,0,1)
+        #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
         transf = robot.get_transformations()
