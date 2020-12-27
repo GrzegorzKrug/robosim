@@ -316,9 +316,9 @@ class Model3D:
             text = f"base {key}" if not seg.name else seg.name
             self._draw_axis(ax, transf, text=text, *args, **kwargs)
 
-        ax.set_xlim([-2, 2])
-        ax.set_ylim([-2, 2])
-        ax.set_zlim([0, 2])
+        ax.set_xlim([-5, 5])
+        ax.set_ylim([-5, 5])
+        ax.set_zlim([0, 5])
         ax.view_init(15, 110)
         plt.show(block=block)
 
