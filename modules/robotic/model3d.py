@@ -51,7 +51,7 @@ class RelativeCoordinate:
                 4, 4), "Transformations has to be 4x4 matrix"
             self.transformation = np.array(transformation)
             self.inverse_old = True
-            return 
+            return
 
         trans = np.eye(4)
         if rotation is not None or rotation_mat is not None:
@@ -86,9 +86,9 @@ class RelativeCoordinate:
             ]
         elif axis == 'y':
             rot = [
-                [math.cos(rad), 0, math.sin(rad)],
+                [math.cos(rad), 0, -math.sin(rad)],
                 [0, 1, 0],
-                [-math.sin(rad), 0, math.cos(rad)],
+                [math.sin(rad), 0, math.cos(rad)],
             ]
         else:
             rot = [
@@ -336,7 +336,7 @@ class Model3D:
         for ind in range(0, 6, 2):
             roi = abs_points[:3, ind:ind+2]
             ax.plot(*roi, c=Cols[ind//2], linewidth=line_width)
-    
+
         if text:
             ax.text(*abs_points[:3, -1], text,
                     fontdict={"size": 15, "weight": 800}
@@ -379,7 +379,7 @@ def create_robot():
             #seg_num,
             #rotation="x", angle=math.radians(20),
             #translation=[1, 1, 0])
-    
+
     val = mod.add_segment(name="anchor")
     val = mod.add_segment(val, name="J1", translation=[0,0,2])
     rot = [
@@ -389,16 +389,16 @@ def create_robot():
     "2"
     val = mod.add_segment(val, name="J2", rotation_mat=rot, translation=[2,0,0])
     "3"
-    val = mod.add_segment(val, name="J3", rotation="z", 
+    val = mod.add_segment(val, name="J3", rotation="z",
         angle=math.pi, translation=[3,0,0])  # 3
     "4"
-    val = mod.add_segment(val, name="J4", 
+    val = mod.add_segment(val, name="J4",
         rotation="x", angle=-math.pi/2, translation=[0,-2,0])  # 4
     "5"
-    val = mod.add_segment(val, name="J5", 
+    val = mod.add_segment(val, name="J5",
         rotation="x", angle=math.pi/2)  # 5
     "6"
-    val = mod.add_segment(val, name="J6", 
+    val = mod.add_segment(val, name="J6",
         rotation="x", angle=-math.pi/2, translation=[0,-1,0])  # 6
 
     #transfDict = mod.get_transformations()
