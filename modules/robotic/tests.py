@@ -75,36 +75,17 @@ def test9_Model3_Bend_2():
     diff = diff.sum()
     assert diff < 0.01, "Model gives different results"
 
-#def test11_():
-    #model = PlainModel([10, 5, 3])
-    #solutions = model.find_pos([0, 18])
-    #solutions2 = model.find_pos([0, -18])
-    #assert len(solutions) == 1, "This models has only 1 solution"
-    #assert len(solutions2) == 1, "This models has only 1 solution"
-#
-#def test12_():
-    #model = PlainModel([10, 5, 3])
-    #solutions = model.find_pos([0, 16])
-    #solutions2 = model.find_pos([0, -16])
-    #assert len(solutions) == 2, "This models has exact 2 solutions"
-    #assert len(solutions2) == 2, "This models has exact 2 solutions"
-#
-#def test13_():
-    #model = PlainModel([10, 5, 3])
-    #solutions = model.find_pos([0, 12])
-    #solutions2 = model.find_pos([0, -12])
-    #assert len(solutions) > 2, "This models has more than 2 solutions"
-    #assert len(solutions2) > 2, "This models has more than 2 solutions"
-
-
 def assert_diff(max_error, ptA, ptB, A_pt1, B_pt1):
+    ptA = np.array(ptA)
+    ptB = np.array(ptB)
+
     diff1 = ptB - B_pt1[:3]
     diff1 = np.absolute(diff1).sum()
-    
+
     assert diff1 < max_error, f"point: {ptA}" + "\n" \
         + f"expected inB: {ptB}, got: {B_pt1} diff: {diff1}"
 
-    if ptA:
+    if False:
         diff2 = ptA - A_pt1[:3]
         diff2 = np.absolute(diff2).sum()
         assert diff2 < max_error, f"point: {ptB}" + "\n" \
@@ -114,13 +95,13 @@ def test14_():
     "Test overlapping coords"
     max_error = 1e-6
     ang = 0
-    trans = np.array([
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    #trans = np.array([
+        #[1, 0, 0, 0],
+        #[0, 1, 0, 0],
+        #[0, 0, 1, 0],
+        #[0, 0, 0, 1],
+        #])
+    cord1 = RelativeCoordinate()
     "A : B Pairs"
     pairs = (
         ([0,0,0], [0,0,0]),
@@ -145,46 +126,7 @@ def test15_():
     "Test same angles, with translation"
     max_error = 1e-6
     ang = 0
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
-
-    "A : B Pairs"
-    pairs = [
-        ((x,y,z),(x-1,y,z-1)) for x,y,z in [
-            (0,0,0),
-            (1,1,1),
-            (4,1,4),
-            (-0.3,0.5,0.3),
-            (3,2,4),
-            np.random.random(3)*20-5,
-            np.random.random(3)*20-5,
-            np.random.random(3)*20-5,
-            np.random.random(3)*20-5,
-            np.random.random(3)*20-5,
-        ]
-    ]
-
-    for ptA, ptB in pairs:
-        B_pt1 = cord1.get_point_fromA(ptA)
-        A_pt1 = cord1.get_point_fromB(ptB)
-        assert_diff(max_error, ptA, ptB, A_pt1, B_pt1)
-
-def test16_():
-    "Test same angles, with translation"
-    max_error = 1e-6
-    ang = 0
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    cord1 = RelativeCoordinate(offset=[1,0,1])
 
     "A : B Pairs"
     pairs = [
@@ -209,15 +151,8 @@ def test16_():
 
 def test17_():
     "Test Angle around Z roation and translation"
-    max_error = 1e-3
-    ang = math.radians(135)
-    trans = np.array([
-        [math.cos(ang), -math.sin(ang), 0, 1],
-        [math.sin(ang), math.cos(ang), 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    max_error = 1e-8
+    cord1 = RelativeCoordinate(axis="z", pos=math.radians(135))
 
     "A : B Pairs"
     pairs = [
@@ -230,22 +165,18 @@ def test17_():
     ]
 
     for ptA, ptB in pairs:
-        B_pt1 = cord1.get_point_fromA(ptA)
-        A_pt1 = cord1.get_point_fromB(ptB)
-        assert_diff(max_error, ptA, ptB, A_pt1, B_pt1)
+        pb = cord1.get_point_fromA(ptA)
+        revA = cord1.get_point_fromB(pb)
+
+        pa = cord1.get_point_fromB(ptB)
+        revB = cord1.get_point_fromA(pa)
+        assert_diff(max_error, ptA, ptB, revA, revB)
 
 def test18_():
     "Test Angle around Y roation and translation"
-    max_error = 1e-3
-    ang = math.radians(85)
-    OFF = [1,0,1]
-    trans = np.array([
-        [math.cos(ang), 0, -math.sin(ang), OFF[0]],
-        [0, 1, 0, OFF[1]],
-        [math.sin(ang), 0, math.cos(ang), OFF[2]],
-        [0,0,0,1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    max_error = 1e-8
+    cord1 = RelativeCoordinate(offset=[1,0,1])
+    cord1.add_rotation(85, "y")
 
     "A : B Pairs"
     pairs = [
@@ -258,33 +189,19 @@ def test18_():
     ]
 
     for ptA, ptB in pairs:
-        B_pt1 = cord1.get_point_fromA(ptA)
-        A_pt1 = cord1.get_point_fromB(ptB)
-        assert_diff(max_error, ptA, ptB, A_pt1, B_pt1)
+        pb = cord1.get_point_fromA(ptA)
+        revA = cord1.get_point_fromB(pb)
+
+        pa = cord1.get_point_fromB(ptB)
+        revB = cord1.get_point_fromA(pa)
+        assert_diff(max_error, ptA, ptB, revA, revB)
 
 def test19_():
     "Test with other rotation"
-    max_error = 1e-3
-    ang = math.radians(30)
-    ang2 = math.radians(85)
-    OFF = [1,0,1]
-    
-    rotZ30 = [
-        [math.cos(ang), -math.cos(ang2), 0],
-        [math.sin(ang), math.cos(ang), 0],
-        [0, 0, 1],
-    ]
-
-    rotX85 = [
-        [1, 0, 0],
-        [0, math.cos(ang2), -math.sin(ang2)],
-        [0, math.sin(ang2), math.cos(ang2)],
-    ]
-    rot = np.dot(rotX85, rotZ30)
-    transf = np.eye(4)
-    transf[:3, -1] = OFF
-    transf[:3, :3] = rot
-    cord1 = RelativeCoordinate(transformation=transf)
+    max_error = 1e-8
+    cord1 = RelativeCoordinate()
+    cord1.add_rotation(30, "z")
+    cord1.add_rotation(85, "x")
 
     "A : B Pairs"
     pairs = [
@@ -297,33 +214,19 @@ def test19_():
     ]
 
     for ptA, ptB in pairs:
-        B_pt1 = cord1.get_point_fromA(ptA)
-        A_pt1 = cord1.get_point_fromB(ptB)
-        assert_diff(max_error, None, ptB, A_pt1, B_pt1)
+        pb = cord1.get_point_fromA(ptA)
+        revA = cord1.get_point_fromB(pb)
+
+        pa = cord1.get_point_fromB(ptB)
+        revB = cord1.get_point_fromA(pa)
+        assert_diff(max_error, ptA, ptB, revA, revB)
 
 def test20_inverse_accuracy():
     "Inverse accuracy measure!"
-    max_error = 1e-3
-    ang = math.radians(30)
-    ang2 = math.radians(85)
-    OFF = [1,0,1]
-    
-    rotZ30 = [
-        [math.cos(ang), -math.cos(ang2), 0],
-        [math.sin(ang), math.cos(ang), 0],
-        [0, 0, 1],
-    ]
+    max_error = 1e-10
 
-    rotX85 = [
-        [1, 0, 0],
-        [0, math.cos(ang2), -math.sin(ang2)],
-        [0, math.sin(ang2), math.cos(ang2)],
-    ]
-    rot = np.dot(rotX85, rotZ30)
-    transf = np.eye(4)
-    transf[:3, -1] = OFF
-    transf[:3, :3] = rot
-    cord1 = RelativeCoordinate(transformation=transf)
+    cord1 = RelativeCoordinate(angle=30)
+    cord1.add_rotation(85, "x")
 
     "A : B Pairs"
     pairs = [
@@ -336,9 +239,12 @@ def test20_inverse_accuracy():
     ]
 
     for ptA, ptB in pairs:
-        B_pt1 = cord1.get_point_fromA(ptA)
-        A_pt1 = cord1.get_point_fromB(ptB)
-        assert_diff(max_error, ptA, ptB, A_pt1, B_pt1)
+        pb = cord1.get_point_fromA(ptA)
+        revA = cord1.get_point_fromB(pb)
+
+        pa = cord1.get_point_fromB(ptB)
+        revB = cord1.get_point_fromA(pa)
+        assert_diff(max_error, ptA, ptB, revA, revB)
 
 
 def test21_():
@@ -351,8 +257,8 @@ def test21_():
         [0, 0, 1, 1],
         [0, 0, 0, 1],
         ])
-    cord1 = RelativeCoordinate(transformation=trans)
-    
+    cord1 = RelativeCoordinate(offset=[1,0,1])
+
     diff = np.absolute(trans - cord1.endFrame).sum()
     assert diff < max_error, f"Error is too big, TransAB: {trans}, got: {cord1.endFrame}"
 
@@ -363,113 +269,585 @@ def test22_():
     pass
 
 def test23_():
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    cord1 = RelativeCoordinate(offset=[1,0,1])
     cord1.visualise(block=False)
 
 def test24_():
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    cord1 = RelativeCoordinate(offset=[1,0,1])
     cord1.visualise([4,5,6], block=False)
 
 def test25_():
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    cord1 = RelativeCoordinate(offset=[1,0,1])
     cord1.visualise([[4,5,6], [4,3,3]], block=False)
 
 def test26_():
-    trans = np.array([
-        [1, 0, 0, 1],
-        [0, 1, 0, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        ])
-    cord1 = RelativeCoordinate(transformation=trans)
+    cord1 = RelativeCoordinate(offset=[1,0,1])
     cord1.visualise([[2, 3], [3, 1], [1,2]], block=False)
 
-def test27_():
-    pass
+def test27_rotDefinition():
+    "Check if orientation is being defined correctly"
+    "X"
+    maxError = 1e-5
+    cord = RelativeCoordinate()
+    mat = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
+    assert np.absolute(cord.orientation - mat).sum() < maxError, "Error is too big"
 
-def test28_():
-    pass
 
-def test29_():
-    pass
-
-def test30_():
-    pass
-
-def test31_():
-    pass
-
-def test32_():
-    pass
-
-def test33_():
-    pass
+def test32_rotDefinition():
+    "Check if orientation is being defined correctly"
+    maxError = 1e-5
+    cord = RelativeCoordinate()
+    mat = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
+    assert np.absolute(cord.orientation - mat).sum() < maxError, "Error is too big"
 
 def test34_():
-    pass
+    "TEST X : Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="x", up="z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test35_():
-    pass
+    "TEST X : -Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="x", up="-z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [1, 0, 0],
+        [0, -1, 0],
+        [0, 0, -1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test36_():
-    pass
+    "TEST -X : Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-x", up="z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [-1, 0, 0],
+        [0, -1, 0],
+        [0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test37_():
-    pass
+    "TEST -X : -Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-x", up="-z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [-1, 0, 0],
+        [0, 1, 0],
+        [0, 0, -1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test38_():
-    pass
+    "TEST X : Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="x", up="y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [1, 0, 0],
+        [0, 0, -1],
+        [0, 1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test39_():
-    pass
+    "TEST X : -Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="x", up="-y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [1, 0, 0],
+        [0, 0, 1],
+        [0, -1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test40_():
-    pass
+    "TEST -X : Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-x", up="y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [-1, 0, 0],
+        [0, 0, 1],
+        [0, 1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test41_():
-    pass
+    "TEST -X : -Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-x", up="-y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [-1, 0, 0],
+        [ 0, 0, -1],
+        [ 0,-1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test42_():
-    pass
+    "TEST Y : Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="y", up="z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 1, 0],
+        [-1, 0, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test43_():
-    pass
+    "TEST Y : -Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="y", up="-z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 1, 0],
+        [ 1, 0, 0],
+        [ 0, 0, -1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test44_():
-    pass
+    "TEST Y : X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="y", up="x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 1, 0],
+        [ 0, 0, 1],
+        [ 1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test45_():
-    pass
+    "TEST Y : -X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="y", up="-x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 1, 0],
+        [ 0, 0, -1],
+        [ -1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test46_():
-    pass
+    "TEST -Y : Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-y", up="z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, -1, 0],
+        [ 1, 0, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test47_():
-    pass
+    "TEST -Y : -Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-y", up="-z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, -1, 0],
+        [ -1, 0, 0],
+        [ 0, 0, -1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test48_():
-    pass
+    "TEST -Y : X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-y", up="x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, -1, 0],
+        [ 0, 0, -1],
+        [ 1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test49_():
-    pass
+    "TEST -Y : -X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-y", up="-x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, -1, 0],
+        [ 0, 0, 1],
+        [ -1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
 def test50_():
+    "TEST Z : -X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="Z", up="-x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0, 1],
+        [ 0, 1, 0],
+        [-1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test51_():
+    "TEST Z : X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="z", up="x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0, 1],
+        [ 0,-1, 0],
+        [ 1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test52_():
+    "TEST Z : Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="Z", up="Y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0, 1],
+        [ 1, 0, 0],
+        [ 0, 1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test53_():
+    "TEST Z : -Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="z", up="-y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0, 1],
+        [-1, 0, 0],
+        [ 0,-1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test54_():
+    "TEST -Z : X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-z", up="x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0,-1],
+        [ 0, 1, 0],
+        [ 1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test55_():
+    "TEST -Z : -X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-z", up="-x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0,-1],
+        [ 0,-1, 0],
+        [-1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test56_():
+    "TEST -Z : y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-z", up="y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0,-1],
+        [-1, 0, 0],
+        [ 0, 1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test57_():
+    "TEST -Z : -y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-z", up="-y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0,-1],
+        [ 1, 0, 0],
+        [ 0,-1, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test59_():
+    "TEST X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 1, 0, 0],
+        [ 0, 1, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test60_():
+    "TEST -X"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-x")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [-1, 0, 0],
+        [ 0,-1, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test61_():
+    "TEST Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 1, 0],
+        [-1, 0, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test62_():
+    "TEST -Y"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-y")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0,-1, 0],
+        [ 1, 0, 0],
+        [ 0, 0, 1],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test63_():
+    "TEST Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0, 1],
+        [ 0, 1, 0],
+        [-1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test64_():
+    "TEST -Z"
+    maxError = 1e-5
+    cord = RelativeCoordinate(axis="-z")
+    transf = cord.orientation
+    points = np.eye(3)
+    res = np.dot(transf, points)
+    solution = np.array([
+        [ 0, 0,-1],
+        [ 0, 1, 0],
+        [ 1, 0, 0],
+    ])
+    print("Got")
+    print(res)
+    print("Expected:")
+    print(solution)
+    assert np.absolute(res - solution).sum() < maxError, "Error is too big"
+
+def test65_():
     pass
+
