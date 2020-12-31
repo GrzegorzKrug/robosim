@@ -1,12 +1,34 @@
 from mpl_toolkits.mplot3d import Axes3D
-import quaternion as quat
 from quaternion import quaternion
+from functools import wraps
+from copy import copy, deepcopy
+from matplotlib.animation import FuncAnimation
 
+import quaternion as quat
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 import time
 import os
+
+
+def point_fromA(orien, offset, point):
+    """
+    Convert points in origin frame to relative
+    """
+    assert len(point) >= 3, "Point has to have at least 3 coords"
+    point = np.array(point) - offset
+    return np.dot(orien, point)
+
+def point_fromB(orien, offset, point):
+    """
+    Convert points in relative axis to parent
+    """
+    assert len(point) >= 3, "Point has to have at least 3 coords"
+    point = np.array(point)
+    pointinA = np.dot(orien, point)
+    pointinA += offset
+    return pointinA
 
 
 class RelativeCoordinate:
@@ -25,16 +47,15 @@ class RelativeCoordinate:
             Translation: Matrix/List/Tuple of size 3
         """
         self._transformation = None
-        self.inverse = None
         self._quaternion = None
 
         "Linear move"
         self.pos = pos
         "Joint Move"
-        self.angle = angle
+        self._angle = angle
         self.null = null
 
-        if offset:
+        if offset is not None:
             self.offset = np.array(offset)
         else:
             self.offset = np.array([0,0,0])
@@ -154,7 +175,6 @@ class RelativeCoordinate:
         RETURN:
             qt - normalized quaternion
         """
-        print("axis", axis)
         if axis:
             try:
                 axis = axis.lower()
@@ -174,7 +194,6 @@ class RelativeCoordinate:
             ax_vect = ax_vect / np.sqrt((ax_vect**2).sum())
 
         qt = self.get_quat(deg, ax_vect)
-
         return qt
 
     def add_rotation(self, *args, **kwargs):
@@ -218,19 +237,35 @@ class RelativeCoordinate:
         raise NotImplementedError
 
     @property
+    def angle(self):
+        return self._angle
+
+    @angle.setter
+    def angle(self, new_val):
+        self._angle = new_val
+
+    @property
     def transf(self):
         return self.transformation
 
     @property
+    def quaternion(self):
+        return copy(self._quaternion)
+
+    @property
+    def quaternion_state(self):
+        angle = self._angle - self.null
+        qz = self.get_quat(angle, [0,0,1])
+        Q = self._quaternion * qz
+        return Q
+
+    @property
     def orientation(self):
-        return quat.as_rotation_matrix(self._quaternion)
+        return quat.as_rotation_matrix(self.quaternion)
 
     @property
     def orientation_state(self):
-        angle = self.angle - self.null
-        qz = self.get_quat(angle, [0,0,1])
-        Q = self._quaternion * qz
-        return quat.as_rotation_matrix(Q)
+        return quat.as_rotation_matrix(self.quaternion_state)
 
     ##@property
     #def get_inverse(self):
@@ -257,8 +292,8 @@ class RelativeCoordinate:
         transf[:3, -1] = self.offset
         return transf
 
-    def get_transformation(self):
-        return self.transformation
+    #def get_transformation(self):
+        #return self.transformation_state
 
     @property
     def endFrame(self):
@@ -289,7 +324,7 @@ class RelativeCoordinate:
         Scatter 1,1,1 point on each frame.
         Show point values in both frames.
         """
-        fig = plt.figure()
+        fig = plt.figure(figsize=(16,9))
         ax = Axes3D(fig)
         dashes = [0.8, 0.5]
         axis_width = 4
@@ -437,32 +472,257 @@ class Model3D:
         self._anchor = anchor if anchor else (0, 0, 0)
         self._segments = dict()
         self._seg_map = dict()
+        self._transf_mats = None
+        self._transf_quats = None
+        self._transf_need_up = True
+        self._ax_directions = dict()
+        #self._prev_axis = (None, None)
 
-    def add_segment(self, parent_id=None, *args, **kwargs):
+    def onChangeDec(fun):
+        @wraps(fun)
+        def wrapper(self, *args, axis=None, up=None, **kwargs):
+            self._transf_need_up = True
+            return fun(self, *args, axis=axis, up=up, **kwargs)
+        return wrapper
+
+    @onChangeDec
+    def add_segment(self, *args, rotation_axis=None, axis=None, **kwargs):
+        """
+        Return:
+            parent_id: integer, key to parent segment
+        """
+        self._ax_directions[len(self._segments)] = dict.fromkeys(["abs", "axis", "up"], None)
+        if axis:
+            ret = self._add_relative_segment(*args, axis=axis, **kwargs)
+        elif rotation_axis:
+            ret = self._add_absolute_segment(*args, rotation_axis=rotation_axis, **kwargs)
+        else:
+            ret = self._add_relative_segment(*args, axis=axis, **kwargs)
+        return ret
+
+    def _add_absolute_segment(self, parent_id, axis=None, up=None, rotation_axis=None,
+            *args, offset=None, **kwargs):
+
+        num = len(self._segments)
+        offset = np.array(offset)
+        rotation_axis = rotation_axis.lower()
+        self._ax_directions[num]['abs'] = rotation_axis
+
+        if '-' in rotation_axis:
+            minus = True
+        else:
+            minus = False
+
+        if "x" in rotation_axis:
+            rotation_axis = "x"
+        elif "y" in rotation_axis:
+            rotation_axis = "y"
+        else:
+            rotation_axis = "z"
+
+        prev = self._ax_directions[parent_id]
+        try:
+            prev_minus = True if '-' in prev['abs'] else False
+            prev_ax = 'x' if 'x' in prev['abs'] else 'y' if 'y' in prev['abs'] else 'z'
+        except TypeError:
+            prev_minus = False
+            prev_ax = None
+
+        "Project axes, based on parent Absolute directions"
+        if prev_ax == "y":
+            if rotation_axis == "x":
+                if prev_minus:
+                    up =  "y"
+                else:
+                   up = '-y'
+                if minus:
+                    axis = '-z'
+                else:
+                    axis = 'z'
+            elif rotation_axis == "y":
+                axis = "x"
+
+                if prev_minus and minus:
+                  up = 'z'
+                elif prev_minus or minus:
+                  up = '-z'
+                else:
+                  up = 'z'
+
+            elif rotation_axis == "z":
+                axis = 'x'
+                if prev_minus and minus:
+                    up = '-y'
+                elif prev_minus or minus:
+                    up = 'y'
+                else:
+                    up = '-y'
+
+        elif prev_ax == 'z':
+            if rotation_axis == "z":
+                axis = 'x'
+                if prev_minus and minus:
+                    up = 'z'
+                elif prev_minus or minus:
+                    up = '-z'
+                else:
+                    up = 'z'
+            elif rotation_axis == "y":
+                axis = 'x'
+                if prev_minus and minus:
+                    up = 'y'
+                elif prev_minus or minus:
+                    up = '-y'
+                else:
+                    up = 'y'
+            elif rotation_axis == 'x':
+                if minus:
+                    axis = '-z'
+                else:
+                    axis = 'z'
+                if prev_minus and minus:
+                    up = 'x'
+                elif prev_minus or minus:
+                    up = '-x'
+                else:
+                    up = 'x'
+
+        else:
+            if rotation_axis == "x":
+                axis = "z"
+                up = "x"
+                if minus:
+                    up = "-x"
+            elif rotation_axis == "y":
+                axis = "x"
+                up = "y"
+                if minus:
+                    up = "-y"
+            if rotation_axis == "z":
+                axis = "x"
+                up = "z"
+                if minus:
+                    up = "-z"
+
+        if axis == "x":
+            x = 1
+        elif axis == "y":
+            x = 2
+        elif axis == "z":
+            x = 3
+        elif axis == "-x":
+            x = -1
+        elif axis == "-y":
+            x = -2
+        else:
+            x = -3
+
+        if up == "x":
+            z = 1
+        elif up == "y":
+            z = 2
+        elif up == "z":
+            z = 3
+        elif up == "-x":
+            z = -1
+        elif up == "-y":
+            z = -2
+        else:
+            z = -3
+
+        poll = set([1,2,3])
+        poll.remove(abs(x))
+        poll.remove(abs(z))
+        if x < 0 and z < 0:
+            y = next(iter(poll))
+        elif x < 0 or z < 0:
+            y = -next(iter(poll))
+        else:
+            y = next(iter(poll))
+
+        if prev_ax == "x":
+            x,z = z,x
+        elif prev_ax == "y":
+            y,z = z,y
+
+        if rotation_axis == "x":
+            y,z = z,y
+        #elif rotation_axis == "y":
+            #x,y = y,x
+
+        #print(num, (x,y,z))
+        rel_offset = np.zeros(3)
+        if x < 0:
+            x = abs(x)-1
+            rel_offset[0] = -offset[x]
+        else:
+            x = abs(x)-1
+            rel_offset[0] = offset[x]
+
+        if y > 0:
+            y = abs(y)-1
+            rel_offset[1] = -offset[y]
+        else:
+            y = abs(y)-1
+            rel_offset[1] = offset[y]
+
+        if z > 0:
+            z = abs(z)-1
+            rel_offset[2] = -offset[z]
+        else:
+            z = abs(z)-1
+            rel_offset[2] = offset[z]
+
+        #rel_offset = offset[[x,y,z]]
+        print(num, (x,y,z), rel_offset, rotation_axis, axis, up)
+        val = self._add_relative_segment(parent_id=parent_id, axis=axis, up=up,
+            *args, offset=rel_offset, **kwargs)
+
+        return val
+
+    def _add_relative_segment(self, parent_id=None, axis=None, up=None, **kwargs):
         num = len(self._segments)
         if parent_id:
             parent_id = int(parent_id)
+        self._ax_directions[num]['axis'] = axis
+        self._ax_directions[num]['up'] = up
 
-        new_segment = Segment(*args, **kwargs)
-
+        new_segment = Segment(axis=axis, up=up, **kwargs)
         self._segments.update({num: new_segment})
         self._seg_map.update({num: parent_id})
         return num
 
-    def draw(self, block=True, *args, **kwargs):
+    def visualise(self, *args, **kwargs):
         plt.figure(figsize=(16, 9))
         ax = plt.gca(projection="3d")
-        transfDict = self.get_transformations()
+        self.draw(ax)
+        plt.show(block=block)
+
+    def draw(self, ax, block=True, *args, **kwargs):
+        ax.set_title("Model PLOT")
+        transfDict = self.transf_mats
+        small = [1,1,1]
+        big = [0,0,0]
+
         for key, transf in transfDict.items():
             seg = self._segments.get(key)
+            small = np.min([small, transf[:3,-1]], axis=0)
+            #print(transf[:3, -1])
+            big = np.max([big, transf[:3,-1]], axis=0)
+
             text = f"base {key}" if not seg.name else seg.name
             self._draw_axis(ax, transf, text=text, *args, **kwargs)
 
-        ax.set_xlim([-5, 5])
-        ax.set_ylim([-5, 5])
-        ax.set_zlim([0, 5])
+        small = small - 0.2
+        big = big + 0.2
+        ax.set_xlim([small[0], big[0]])
+        ax.set_ylim([small[1], big[1]])
+        ax.set_zlim([small[2], big[2]])
         ax.view_init(15, 110)
-        plt.show(block=block)
+
+    def __getitem__(self, key):
+        self._transf_need_up = True
+        return self._segments.get(key, None)
 
     @staticmethod
     def _draw_axis(ax, transf, ax_size=1, line_width=3, text=None):
@@ -484,101 +744,148 @@ class Model3D:
                     fontdict={"size": 15, "weight": 800}
                     )
 
-    def get_transformations(self):
-        transfDict = dict()
-        for key, parent in self._seg_map.items():
-            transf = transfDict.get(key, None)
-            if transf is None:
-                self._get_single_transf(transfDict, key)
-        return transfDict
+    #def get_quaternions(self):
+        #qtDict = dict()
+        #for key, parent in self._seg_map.items():
+            #pair = qtDict.get(key, None)
+            #if pair is None:
+                #self._get_single_transf(qtDict, key)
+        #return qtDict
 
-    def _get_single_transf(self, transfDict, num):
-        parent = self._seg_map.get(num)
-        if parent is not None:
-            par_transf = transfDict.get(parent, None)
-            if par_transf is None:
-                par_transf = self._get_single_transf(parent)
+    def calculate_transformations(self, inquaternions=True):
+        if self._transf_need_up:
+            transfDict = dict()
 
-            rel_transf = self._segments.get(num).transformation
-            rel_transf = 1 if rel_transf is None else rel_transf
+            for key, parent in self._seg_map.items():
+                transf = transfDict.get(key, None)
+                if transf is None:
+                    self._get_single_transf_qt(transfDict, key)
 
-            transf = np.dot(par_transf, rel_transf)
-            transfDict.update({num: transf})
-            return transf
+            self._transf_quats = transfDict.copy()
+            #for qt, off in transfDict.values():
+                #print()
+                #print(qt)
+                #print(off)
+            transf_mats = dict()
+            for key, (qt, offset) in transfDict.items():
+                trmat = np.eye(4)
+                trmat[:3, :3] = quat.as_rotation_matrix(qt)
+                trmat[:3, -1] = offset
+                transf_mats.update({key: trmat})
+
+            self._transf_mats = transf_mats.copy()
+            self._transf_need_up = False
+        return self._transf_mats.copy()
+
+    def _get_single_transf_qt(self, transfDict=None, num=0):
+        parent_num = self._seg_map.get(num)
+        if parent_num is not None:
+            parent = transfDict.get(parent_num, None)
+            if parent is None:
+                parent = self._get_single_transf_qt(parent)
+
+            parent_qt, parent_offset = parent
+            seg = self._segments.get(num)
+            seg_qt = seg.quaternion_state
+            offset = seg.offset
+            transf = parent_qt * seg_qt 
+
+            abs_offset = point_fromB(quat.as_rotation_matrix(parent_qt), parent_offset, offset) 
+
+            pair = (transf, abs_offset)
+
+            transfDict.update({num: pair})
+            return pair
 
         else:
-            transf = self._segments.get(num).transformation
-            if transf is None:
-                transf = 1
-            transfDict.update({num: transf})
-            return transf
+            "Parent is None, so this is root!"
+            seg = self._segments.get(num)
+            transf = seg.quaternion_state
+            offset = seg.offset
+            pair = (transf, offset)
+            transfDict.update({num: pair})
+            return pair
 
+    @property
+    def transf_mats(self):
+        self.calculate_transformations()
+        return deepcopy(self._transf_mats)
+
+    @property
+    def transf_quats(self):
+        self.calculate_transformations()
+        return deepcopy(self._transf_quats)
 
 def create_robot():
     mod = Model3D()
-    #for x in range(8):
-        #seg_num = mod.add_segment(
-            #seg_num,
-            #rotation="x", angle=math.radians(20),
-            #translation=[1, 1, 0])
 
     val = mod.add_segment(name="anchor")
-    val = mod.add_segment(val, name="J1", up="-z", offset=[0,0,2])
-    rot = [
-        [0, 1, 0],
-        [0, 0, 1],
-        [1, 0, 0]]
-    "2"
-    val = mod.add_segment(val, name="J2", axis="y", up="-x", offset=[2,0,0])
+    val = mod.add_segment(val, name="J1", rotation_axis = "-z",  offset=[0,0,0.345])
+    val = mod.add_segment(val, name="J2", rotation_axis = "y",  offset=[0.02,0,0])
+    val = mod.add_segment(val, name="J3", rotation_axis = "y",  offset=[0.26,0,0])
+    val = mod.add_segment(val, name="J4", rotation_axis ="-x",  offset=[0,0,0.02])
+    val = mod.add_segment(val, name="J5", rotation_axis = "y",  offset=[0.26,0,0])
+    val = mod.add_segment(val, name="J6", rotation_axis= "-x",  offset=[0.075,0,0])
+    #val = mod.add_segment(val, name="J1", axis="x", up="-z", offset=[0,0,0.345])
+    #"2"
+    #val = mod.add_segment(val, name="J2", axis="y", up="-x", offset=[0.02,0,0])
+#
+    #"3"
+    #val = mod.add_segment(val, name="J3", axis="-x", up='z', offset=[0.26,0,0])
+#
+    #"4"
+    #val = mod.add_segment(val, name="J4", axis="x", up="-y", offset=[0,-0.02,0])
+#
+    #"5"
+    #val = mod.add_segment(val, name="J5", axis="x", up="y", offset=[-0.26,0,0])
+#
+    #"6"
+    #val = mod.add_segment(val, name="J6", axis="x", up="-y", offset=[0,-0.075,0])
+    return mod
 
-    "3"
-    val = mod.add_segment(val, name="J3", axis="-x", offset=[3,0,0])
+def animate(i):
+    #print(i)
+    interval = 80
+    amplitude = 10
+    #robot[1].angle = i/2
+    #robot[2].angle = i*2
+    ##step = abs(interval - (i%(interval)*2)) / interval * amplitude
+    #robot[3].angle += 3# i/10%4
+    #robot[4].angle += i/2%7
+    #robot[5].angle = i * 2
+    #robot[6].angle = i * 9
 
-    "4"
-    val = mod.add_segment(val, name="J4", axis="x", up="-y", offset=[0,-2,0])
+    ax.clear()
+    trf = robot.transf_mats
+    robot.draw(ax, ax_size=0.1)
+    end_trf = robot.transf_mats[6]
+    orien = end_trf[:3, :3]
+    offset = end_trf[:3, -1]
 
-    "5"
-    val = mod.add_segment(val, name="J5", axis="x", up="y")  # 5
+    end_point = point_fromB(orien, offset=offset, point=[0,0,0])
+    trail.append(end_point)
+    pts = np.array(trail[-250:]).T
+    cols = np.clip(0,1, np.absolute(pts).T*2)
+    ax.scatter(pts[0, :], pts[1, :], pts[2, :], c=cols)
 
-    "6"
-    val = mod.add_segment(val, name="J6", axis="x", up="-y", offset=[0,-1,0])
-
-    #transfDict = mod.get_transformations()
-    mod.draw(line_width=3)
-
+    ed = 0.5
+    ax.set_xlim([-ed, ed])
+    ax.set_ylim([-ed, ed])
+    ax.set_zlim([0, ed])
 
 if __name__ == "__main__":
     "DRAW some axis"
-    #create_robot()
+    robot = create_robot()
+    #robot[1].angle = -50
+    #robot[2].angle=20
+    fig = plt.figure(figsize=(10,7))
+    ax = plt.gca(projection="3d")
+    trail = []
+
+
+    robot.draw(ax)
+    ani = FuncAnimation(fig, animate, interval=5)
+    plt.show()
+
     ed = 2
-
-    line = [[x, -1, 0.5] for x in np.linspace(0,4,9)]
-    print(line)
-    points = [
-        *line,
-        #[ 1, 2,-1],
-        #[ 1, 0,0],
-        #[ 0, 1,0],
-        #[ 0, 0,1],
-        #[ 1, 1,0],
-        #[-1,-1,0],
-        #[-1, 0,0],
-        #[ 0,-1,0],
-        [1,2,3],
-        [-ed,-ed, -ed],
-        [ ed, ed, ed],
-    ]
-    mod = Model3D()
-
-    #cord = RelativeCoordinate(axis="y", angle=45, offset=[2,0,0])
-    cord = RelativeCoordinate()
-    cord.add_rotation(30, "z")
-    cord.add_rotation(85, "x")
-    #qt = cord.add_rotation(90, "y")
-    #qt = cord.add_rotation(45, "z")
-    #print(qt)
-    #print(qt.absolute())
-
-    #cord.visualise()
-    cord.visualise(points, show_back=False)
 

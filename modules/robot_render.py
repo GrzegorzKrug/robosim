@@ -25,29 +25,15 @@ def create_robot():
         #seg_num = mod.add_segment(
             #seg_num,
             #rotation="x", angle=math.radians(20),
-            #translation=[1, 1, 0])
-    
     val = mod.add_segment(name="anchor")
-    val = mod.add_segment(val, name="J1", translation=[0,0,0.345])
-    rot = [
-        [0, 1, 0],
-        [0, 0, 1],
-        [1, 0, 0]]
-    "2"
-    val = mod.add_segment(val, name="J2", rotation_mat=rot, translation=[0.02,0,0])
-    "3"
-    val = mod.add_segment(val, name="J3", rotation="z", 
-        angle=math.pi, translation=[0.26,0,0])  # 3
-    "4"
-    val = mod.add_segment(val, name="J4", 
-        rotation="x", angle=-math.pi/2, translation=[0,-0.02,0])  # 4
-    "5"
-    val = mod.add_segment(val, name="J5", 
-        rotation="x", angle=math.pi/2, translation=[0.26, 0, 0])  # 5
-    "6"
-    val = mod.add_segment(val, name="J6", 
-        rotation="x", angle=-math.pi/2, translation=[0,-0.26,0])  # 6
-    #mod.draw(ax_size=0.4)
+    val = mod.add_segment(val, name="J1", rotation_axis = "-z",  offset=[0,0,0.345])
+    val = mod.add_segment(val, name="J2", rotation_axis = "y",  offset=[0.02,0,0])
+    val = mod.add_segment(val, name="J3", rotation_axis = "y",  offset=[0.26,0,0])
+    val = mod.add_segment(val, name="J4", rotation_axis ="-x",  offset=[0,0,0.02])
+    val = mod.add_segment(val, name="J5", rotation_axis = "y",  offset=[0.26,0,0])
+    val = mod.add_segment(val, name="J6", rotation_axis= "-x",  offset=[0.075,0,0])
+
+    #mod.visualise(ax_size=0.1)
     return mod
 
 
@@ -70,35 +56,52 @@ def main():
     stl1_vis = os.path.abspath(
         os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
     )
-    stl1_vis = os.path.abspath(
-        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    stl2_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_2.stl")
     )
-    stl1_vis = os.path.abspath(
-        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    stl3_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_3.stl")
     )
-    stl1_vis = os.path.abspath(
-        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    stl4_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_4.stl")
     )
-    stl1_vis = os.path.abspath(
-        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    stl5_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_5.stl")
     )
-    stl1_vis = os.path.abspath(
-        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    stl6_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_6.stl")
     )
 
     stl1_vis = mesh.Mesh.from_file(stl1_vis)
+    stl2_vis = mesh.Mesh.from_file(stl2_vis)
+    stl3_vis = mesh.Mesh.from_file(stl3_vis)
+    stl4_vis = mesh.Mesh.from_file(stl4_vis)
+    stl5_vis = mesh.Mesh.from_file(stl5_vis)
+    stl6_vis = mesh.Mesh.from_file(stl6_vis)
 
     glRotate(-90, 1, 0, 0)
     glRotate(90, 0, 0, 1)
-    glTranslate(1, 0, -0.5)
-    glRotate(15, 0, -1, 0)
+    glTranslate(2, -0.7, -0.5)
+    glRotate(20, 0, -1, 0)
+    glRotate(35, 0, 0, 1)
     glPushMatrix()
 
     #gluLookAt(0,2,0.4, 0,0,0, 0,0,1)
     N = 20
     pts = 20
-    
+
+    MESH_COLORS = cycle([
+        (1,1,1),
+        (1,0.8,0.5),
+        (1,0.2,0.7),
+        (0.3,0.7,1),
+        (0.5,1,1),
+        (0.3,0.7,0.4),
+        (0,1,0.5),
+    ])
     robot = create_robot()
+    #robot[2].angle = -60
+
     plane = []
     for val in np.linspace(-N/2, N/2, pts):
         plane.append([(-N/2, val, 0),(N/2, val, 0)])
@@ -149,11 +152,11 @@ def main():
                     pt[2] = 0
                     glTranslate(*pt)
                 elif event.key == pygame.K_KP_PLUS:
-                    glTranslate(0, 0, -step)
+                    glTranslate(0, 0, step)
                 elif event.key == pygame.K_KP_MINUS:
-                    glTranslate(0, 0,step)
+                    glTranslate(0, 0,-step)
 
-                ang = 15 
+                ang = 15
                 if event.key == pygame.K_KP8:
                     glRotatef(ang, 0, -1, 0)
                 elif event.key == pygame.K_KP2:
@@ -180,49 +183,82 @@ def main():
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         render_axis()
         render_plane(plane)
-        
+
         glMatrixMode(GL_MODELVIEW)
         #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
-        transf = robot.get_transformations()
+        all_TR = robot.transf_mats
+        all_qt = robot.transf_quats
         glPushMatrix()
-        prev = [0,0,0,0]
+        prev = [0,0,0]
+        meshes = [None, stl1_vis, stl2_vis, stl3_vis, stl4_vis, stl5_vis, stl6_vis]
+        model = glGetFloatv(GL_MODELVIEW_MATRIX)
+        #print()
+        #print(model)
 
-        for stl_mesh, key in zip([stl1_vis], range(1, len(transf))):
-            
+        for stl_mesh, key in zip(meshes, range(0, 7)):
             glDisable(GL_DEPTH_TEST)
+
             glLineWidth(15)
             glColor(1,0.6,0)
+            segment = robot[key]
+            trf = segment.transformation
+            #Qvec = segment._quaternion
+            QT, abs_offset = all_qt.get(key)
+            #QT = QT.transpose()
+            Qvec = math.degrees(QT.angle()), QT.x, QT.y, QT.z
+            #print(Qvec, QT)
+            #point = segment.get_point_fromB([0,0,0])
+            #point = point + prev
+
+            point = np.dot(all_TR[key], [0,0,0,1])[:3]
+            #print(str(prev).ljust(30), str(point))
 
             glBegin(GL_LINES)
-            trf = transf.get(key)
-            point = np.dot(trf, [0,0,0,1])
-            glVertex3f(*prev[:3])
-            glVertex3f(*point[:3])
-            prev = point
+            glVertex3fv(prev)
+            glVertex3fv(point)
             glEnd()
- 
+
+            #glLineWidth(2)
+            #glBegin(GL_LINES)
+            #glColor(0.7,0,0)
+            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
+            #glVertex3fv(prev + segment.get_point_fromB([1,0,0]))
+            #glColor(0,0.7,0)
+            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
+            #glVertex3fv(prev + segment.get_point_fromB([0,1,0]))
+            #glColor(0,0,0.7)
+            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
+            #glVertex3fv(prev + segment.get_point_fromB([0,0,1]))
+            #glEnd()
+            prev = point
+
             "Mesh render"
-            glEnable(GL_DEPTH_TEST)
-            glColor(0.1,0.7,1)
-            vect = stl1_vis.vectors
-            glLineWidth(1)
-            glTranslate(*trf[:3, 3])
-            #glRotate(30,0,1,0)
-            glBegin(GL_LINES)
-            for vex in vect:
-                for pt in vex:
-                    glVertex3f(*pt)
-                glVertex3f(*vex[0])
-        glEnd()
+            #glEnable(GL_DEPTH_TEST)
+            color = next(MESH_COLORS)
+            glColor(color)
+            if stl_mesh:
+                vect = stl_mesh.vectors
+                glLineWidth(1)
+                glPushMatrix()
+                glTranslate(*abs_offset)
+                #glRotate(*Qvec)
+
+                glBegin(GL_LINES)
+                for vex in vect:
+                    for pt in vex:
+                        glVertex3f(*pt)
+                    glVertex3f(*vex[0])
+                glEnd()
+                glPopMatrix()
+
         glPopMatrix()
 
         pygame.display.flip()
         pygame.time.wait(10)
 
     pygame.quit()
-
 
 
 main()
