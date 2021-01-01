@@ -500,6 +500,10 @@ class Model3D:
             ret = self._add_relative_segment(*args, axis=axis, **kwargs)
         return ret
 
+    @property
+    def joints(self):
+        return tuple(self[num].angle for num in range(len(self._segments)))
+
     def _add_absolute_segment(self, parent_id, axis=None, up=None, rotation_axis=None,
             *args, offset=None, **kwargs):
 
@@ -521,6 +525,7 @@ class Model3D:
             rotation_axis = "z"
 
         prev = self._ax_directions[parent_id]
+        print(num, prev, rotation_axis)
         try:
             prev_minus = True if '-' in prev['abs'] else False
             prev_ax = 'x' if 'x' in prev['abs'] else 'y' if 'y' in prev['abs'] else 'z'
@@ -847,6 +852,30 @@ def animate(i):
     #print(i)
     interval = 80
     amplitude = 10
+    global phase
+
+    cycle = 45
+    step = 360 / cycle
+
+    if not ((i+1) % cycle):
+        phase = (phase + 1) % 6
+
+    #phase = 5
+    if phase == 0:
+        robot[1].angle += step
+    elif phase == 1:
+        robot[2].angle += step
+    elif phase == 2:
+        robot[3].angle += step
+    elif phase == 3:
+        robot[4].angle += step
+    elif phase == 4:
+        robot[5].angle += step
+    else:
+        robot[6].angle += step
+
+    #print(robot.joints)
+
     #robot[1].angle = i/2
     #robot[2].angle = i*2
     ##step = abs(interval - (i%(interval)*2)) / interval * amplitude
@@ -864,7 +893,7 @@ def animate(i):
 
     end_point = point_fromB(orien, offset=offset, point=[0,0,0])
     trail.append(end_point)
-    pts = np.array(trail[-250:]).T
+    pts = np.array(trail[-cycle:]).T
     cols = np.clip(0,1, np.absolute(pts).T*2)
     ax.scatter(pts[0, :], pts[1, :], pts[2, :], c=cols)
 
@@ -876,6 +905,7 @@ def animate(i):
 if __name__ == "__main__":
     "DRAW some axis"
     robot = create_robot()
+    phase = 0
     #robot[1].angle = -50
     #robot[2].angle=20
     fig = plt.figure(figsize=(10,7))
@@ -884,7 +914,7 @@ if __name__ == "__main__":
 
 
     robot.draw(ax)
-    ani = FuncAnimation(fig, animate, interval=5)
+    ani = FuncAnimation(fig, animate, interval=50)
     plt.show()
 
     ed = 2
