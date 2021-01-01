@@ -81,7 +81,7 @@ def main():
 
     glRotate(-90, 1, 0, 0)
     glRotate(90, 0, 0, 1)
-    glTranslate(2, -0.7, -0.5)
+    glTranslate(0.8, -0.35, -0.2)
     glRotate(20, 0, -1, 0)
     glRotate(35, 0, 0, 1)
     glPushMatrix()
@@ -130,7 +130,7 @@ def main():
                 model.T = Transformv_Visual_Absolute
                 """
                 rot = model[:3, :3]
-                step = 0.5
+                step = 0.1
                 if event.key == pygame.K_UP:
                     pt = np.dot(rot, (0,0,step))
                     pt[1] = pt[1] / (1-pt[2])
@@ -156,7 +156,7 @@ def main():
                 elif event.key == pygame.K_KP_MINUS:
                     glTranslate(0, 0,-step)
 
-                ang = 15
+                ang = 5
                 if event.key == pygame.K_KP8:
                     glRotatef(ang, 0, -1, 0)
                 elif event.key == pygame.K_KP2:
@@ -205,7 +205,9 @@ def main():
             segment = robot[key]
             trf = segment.transformation
             #Qvec = segment._quaternion
-            QT, abs_offset = all_qt.get(key)
+            some = all_qt.get(key)
+            #print(key, some)
+            QT, abs_offset = some
             #QT = QT.transpose()
             Qvec = math.degrees(QT.angle()), QT.x, QT.y, QT.z
             #print(Qvec, QT)

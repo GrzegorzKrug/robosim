@@ -12,24 +12,62 @@ import time
 import os
 
 
-def point_fromA(orien, offset, point):
+def point_fromA(orien, offset=None, point=None):
     """
     Convert points in origin frame to relative
     """
+    if offset is None:
+        offset = [0,0,0]
     assert len(point) >= 3, "Point has to have at least 3 coords"
     point = np.array(point) - offset
     return np.dot(orien, point)
 
-def point_fromB(orien, offset, point):
+
+def point_fromB(orien, offset=None, point=None):
     """
     Convert points in relative axis to parent
     """
+    if offset is None:
+        offset = [0,0,0]
     assert len(point) >= 3, "Point has to have at least 3 coords"
     point = np.array(point)
     pointinA = np.dot(orien, point)
     pointinA += offset
     return pointinA
 
+
+def get_quat(deg, axis):
+    """
+    Generate quad from degrees and axis vector.
+    Remeber to normalize quaternion!
+    Args:
+        deg - value in degrees
+        axis - axis vector should be normalized to 1
+    """
+    axis = np.array(axis)
+    radians = math.radians(deg)
+    c1 = math.cos(radians/2)
+    s1 = math.sin(radians/2)
+    sins = s1* np.array(axis)
+    q1 = quaternion(c1, *sins)
+    return q1
+
+def get_quat_normalised(deg, axis):
+    """
+    Generate quad from degrees and axis vector.
+    Remeber to normalize quaternion!
+    Args:
+        deg - value in degrees
+        axis - axis vector should be normalized to 1
+    """
+    axis = np.array(axis)
+    axis = axis / np.sqrt(np.sum(axis*axis))
+    radians = math.radians(deg)
+    c1 = math.cos(radians/2)
+    s1 = math.sin(radians/2)
+    sins = s1* np.array(axis)
+    q1 = quaternion(c1, *sins)
+    return q1
 
 class RelativeCoordinate:
     def __init__(self, pos=0, angle=0, null=0, *args, offset=None, **kwargs):
@@ -67,24 +105,25 @@ class RelativeCoordinate:
         Define transformation
         """
         qt = self.get_qt_from_ax(axis, up)
-        self._quaternion = qt
+        self.quaternion = qt
 
-    @staticmethod
-    def get_quat(deg, axis):
-        """
-        Generate quad from degrees and axis vector.
-        Remeber to normalize quaternion!
-        Args:
-            deg - value in degrees
-            axis - axis vector should be normalized to 1
-        """
-        axis = np.array(axis)
-        radians = math.radians(deg)
-        c1 = math.cos(radians/2)
-        s1 = math.sin(radians/2)
-        sins = s1* np.array(axis)
-        q1 = quaternion(c1, *sins)
-        return q1
+
+    #@staticmethod
+    #def get_quat(deg, axis):
+        #"""
+        #Generate quad from degrees and axis vector.
+        #Remeber to normalize quaternion!
+        #Args:
+            #deg - value in degrees
+            #axis - axis vector should be normalized to 1
+        #"""
+        #axis = np.array(axis)
+        #radians = math.radians(deg)
+        #c1 = math.cos(radians/2)
+        #s1 = math.sin(radians/2)
+        #sins = s1* np.array(axis)
+        #q1 = quaternion(c1, *sins)
+        #return q1
 
     @classmethod
     def get_qt_from_ax(self, axis=None, up=None):
@@ -103,16 +142,16 @@ class RelativeCoordinate:
 
         if axis == "x" or axis == "-x" or axis is None:
             if axis == '-x':
-                q1 = self.get_quat(180, [0,0,1])
+                q1 = get_quat(180, [0,0,1])
             else:
                 q1 = quaternion(1, 0,0,0)
 
             if up == "y":
-                q2 = self.get_quat(90, [1,0,0])
+                q2 = get_quat(90, [1,0,0])
             elif up == "-y":
-                q2 = self.get_quat(-90, [1,0,0])
+                q2 = get_quat(-90, [1,0,0])
             elif up == "-z":
-                q2 = self.get_quat(180, [1,0,0])
+                q2 = get_quat(180, [1,0,0])
             else:
                 q2 = quaternion(1, 0,0,0)
 
@@ -121,48 +160,48 @@ class RelativeCoordinate:
 
         elif axis == "y" or axis == "-y":
             if up == "x":
-                q2 = self.get_quat(-90, [0,1,0])
+                q2 = get_quat(-90, [0,1,0])
             elif up == "-x":
-                q2 = self.get_quat(90, [0,1,0])
+                q2 = get_quat(90, [0,1,0])
             elif up == "-z":
-                q2 = self.get_quat(180, [0,1,0])
+                q2 = get_quat(180, [0,1,0])
             else:
                 q2 = quaternion(1, 0,0,0)
 
             if axis == "y":
-                q1 = self.get_quat(-90, [0,0,1])
+                q1 = get_quat(-90, [0,0,1])
             else:
-                q1 = self.get_quat(90, [0,0,1])
+                q1 = get_quat(90, [0,0,1])
             Q = q1 * q2
             return Q
 
         else:
             if up is not None:
                 if up == "y":
-                    q1 = self.get_quat(90, [1,0,0])
+                    q1 = get_quat(90, [1,0,0])
                     angle = 90
                 elif up == "-y":
-                    q1 = self.get_quat(-90, [1,0,0])
+                    q1 = get_quat(-90, [1,0,0])
                     angle = -90
                 elif up == "-x":
-                    q1 = self.get_quat(90, [0,1,0])
+                    q1 = get_quat(90, [0,1,0])
                     angle = 0
                 else:
-                    q1 = self.get_quat(-90, [0,1,0])
+                    q1 = get_quat(-90, [0,1,0])
                     angle = 180
 
                 if axis == "z":
-                    q2 = self.get_quat(angle, [0,0,1])
+                    q2 = get_quat(angle, [0,0,1])
                 else:
                     angle = 180 + angle
-                    q2 = self.get_quat(angle, [0,0,1])
+                    q2 = get_quat(angle, [0,0,1])
 
                 Q = q2 * q1
             else:
                 if axis == "z":
-                    Q = self.get_quat(90, [0,1,0])
+                    Q = get_quat(90, [0,1,0])
                 else:
-                    Q = self.get_quat(-90, [0,1,0])
+                    Q = get_quat(-90, [0,1,0])
             return Q
 
     def get_rotation(self, deg, axis=None):
@@ -193,7 +232,7 @@ class RelativeCoordinate:
             "NORMALIZE VECTOR TO 1"
             ax_vect = ax_vect / np.sqrt((ax_vect**2).sum())
 
-        qt = self.get_quat(deg, ax_vect)
+        qt = get_quat(deg, ax_vect)
         return qt
 
     def add_rotation(self, *args, **kwargs):
@@ -252,10 +291,15 @@ class RelativeCoordinate:
     def quaternion(self):
         return copy(self._quaternion)
 
+    @quaternion.setter
+    def quaternion(self, new_qt):
+        assert isinstance(new_qt, quaternion)
+        self._quaternion = new_qt
+
     @property
     def quaternion_state(self):
         angle = self._angle - self.null
-        qz = self.get_quat(angle, [0,0,1])
+        qz = get_quat(angle, [0,0,1])
         Q = self._quaternion * qz
         return Q
 
@@ -481,8 +525,9 @@ class Model3D:
     def onChangeDec(fun):
         @wraps(fun)
         def wrapper(self, *args, axis=None, up=None, **kwargs):
+            ret = fun(self, *args, axis=axis, up=up, **kwargs)
             self._transf_need_up = True
-            return fun(self, *args, axis=axis, up=up, **kwargs)
+            return ret
         return wrapper
 
     @onChangeDec
@@ -507,183 +552,42 @@ class Model3D:
     def _add_absolute_segment(self, parent_id, axis=None, up=None, rotation_axis=None,
             *args, offset=None, **kwargs):
 
+        assert len(args) == 0, "Some Positional arguments are wasted: " + str(args)
+
         num = len(self._segments)
         offset = np.array(offset)
         rotation_axis = rotation_axis.lower()
         self._ax_directions[num]['abs'] = rotation_axis
-
-        if '-' in rotation_axis:
-            minus = True
-        else:
-            minus = False
-
-        if "x" in rotation_axis:
-            rotation_axis = "x"
-        elif "y" in rotation_axis:
-            rotation_axis = "y"
-        else:
-            rotation_axis = "z"
-
         prev = self._ax_directions[parent_id]
-        print(num, prev, rotation_axis)
-        try:
-            prev_minus = True if '-' in prev['abs'] else False
-            prev_ax = 'x' if 'x' in prev['abs'] else 'y' if 'y' in prev['abs'] else 'z'
-        except TypeError:
-            prev_minus = False
-            prev_ax = None
+        self.transf_mats
+        quats = self.transf_quats
+        par_orientation = quats[parent_id][0]
 
-        "Project axes, based on parent Absolute directions"
-        if prev_ax == "y":
-            if rotation_axis == "x":
-                if prev_minus:
-                    up =  "y"
-                else:
-                   up = '-y'
-                if minus:
-                    axis = '-z'
-                else:
-                    axis = 'z'
-            elif rotation_axis == "y":
-                axis = "x"
-
-                if prev_minus and minus:
-                  up = 'z'
-                elif prev_minus or minus:
-                  up = '-z'
-                else:
-                  up = 'z'
-
-            elif rotation_axis == "z":
-                axis = 'x'
-                if prev_minus and minus:
-                    up = '-y'
-                elif prev_minus or minus:
-                    up = 'y'
-                else:
-                    up = '-y'
-
-        elif prev_ax == 'z':
-            if rotation_axis == "z":
-                axis = 'x'
-                if prev_minus and minus:
-                    up = 'z'
-                elif prev_minus or minus:
-                    up = '-z'
-                else:
-                    up = 'z'
-            elif rotation_axis == "y":
-                axis = 'x'
-                if prev_minus and minus:
-                    up = 'y'
-                elif prev_minus or minus:
-                    up = '-y'
-                else:
-                    up = 'y'
-            elif rotation_axis == 'x':
-                if minus:
-                    axis = '-z'
-                else:
-                    axis = 'z'
-                if prev_minus and minus:
-                    up = 'x'
-                elif prev_minus or minus:
-                    up = '-x'
-                else:
-                    up = 'x'
-
-        else:
-            if rotation_axis == "x":
-                axis = "z"
-                up = "x"
-                if minus:
-                    up = "-x"
-            elif rotation_axis == "y":
-                axis = "x"
-                up = "y"
-                if minus:
-                    up = "-y"
-            if rotation_axis == "z":
-                axis = "x"
-                up = "z"
-                if minus:
-                    up = "-z"
-
-        if axis == "x":
-            x = 1
-        elif axis == "y":
-            x = 2
-        elif axis == "z":
-            x = 3
-        elif axis == "-x":
-            x = -1
-        elif axis == "-y":
-            x = -2
-        else:
-            x = -3
-
-        if up == "x":
-            z = 1
-        elif up == "y":
-            z = 2
-        elif up == "z":
-            z = 3
-        elif up == "-x":
-            z = -1
-        elif up == "-y":
-            z = -2
-        else:
-            z = -3
-
-        poll = set([1,2,3])
-        poll.remove(abs(x))
-        poll.remove(abs(z))
-        if x < 0 and z < 0:
-            y = next(iter(poll))
-        elif x < 0 or z < 0:
-            y = -next(iter(poll))
-        else:
-            y = next(iter(poll))
-
-        if prev_ax == "x":
-            x,z = z,x
-        elif prev_ax == "y":
-            y,z = z,y
 
         if rotation_axis == "x":
-            y,z = z,y
-        #elif rotation_axis == "y":
-            #x,y = y,x
-
-        #print(num, (x,y,z))
-        rel_offset = np.zeros(3)
-        if x < 0:
-            x = abs(x)-1
-            rel_offset[0] = -offset[x]
+            qt = get_quat_normalised(-90, [0, 1, 0])
+        elif rotation_axis == '-x':
+            qt = get_quat_normalised(90, [0, 1, 0])
+        elif rotation_axis == 'y':
+            qt = get_quat_normalised(-90, [1, 0, 0])
+        elif rotation_axis == '-y':
+            qt = get_quat_normalised(90, [1, 0, 0])
+        elif rotation_axis == 'z':
+            qt = quaternion(1, 0,0,0)
+        elif rotation_axis == '-z':
+            qt = get_quat_normalised(180, [1, 0, 0])
         else:
-            x = abs(x)-1
-            rel_offset[0] = offset[x]
+            raise ValueError(f"This axis is wrong {rotation_axis}")
 
-        if y > 0:
-            y = abs(y)-1
-            rel_offset[1] = -offset[y]
-        else:
-            y = abs(y)-1
-            rel_offset[1] = offset[y]
+        par_inv = par_orientation.inverse()
+        absqt = par_inv * qt
 
-        if z > 0:
-            z = abs(z)-1
-            rel_offset[2] = -offset[z]
-        else:
-            z = abs(z)-1
-            rel_offset[2] = offset[z]
+        rel_offset = point_fromB(quat.as_rotation_matrix(par_inv), point=offset)
+        new_seg = Segment(offset=rel_offset, **kwargs)
+        new_seg.quaternion = absqt
+        self._add_segment(num, new_seg, parent_id)
 
-        #rel_offset = offset[[x,y,z]]
-        print(num, (x,y,z), rel_offset, rotation_axis, axis, up)
-        val = self._add_relative_segment(parent_id=parent_id, axis=axis, up=up,
-            *args, offset=rel_offset, **kwargs)
-
-        return val
+        return num
 
     def _add_relative_segment(self, parent_id=None, axis=None, up=None, **kwargs):
         num = len(self._segments)
@@ -693,6 +597,13 @@ class Model3D:
         self._ax_directions[num]['up'] = up
 
         new_segment = Segment(axis=axis, up=up, **kwargs)
+        self._add_segment(num, new_segment, parent_id)
+        return num
+
+    def _add_segment(self, num, new_segment, parent_id):
+        """
+        Add segment to class hierarchy
+        """
         self._segments.update({num: new_segment})
         self._seg_map.update({num: parent_id})
         return num
@@ -749,15 +660,8 @@ class Model3D:
                     fontdict={"size": 15, "weight": 800}
                     )
 
-    #def get_quaternions(self):
-        #qtDict = dict()
-        #for key, parent in self._seg_map.items():
-            #pair = qtDict.get(key, None)
-            #if pair is None:
-                #self._get_single_transf(qtDict, key)
-        #return qtDict
-
     def calculate_transformations(self, inquaternions=True):
+        "Calculatre transformations to current state"
         if self._transf_need_up:
             transfDict = dict()
 
@@ -767,12 +671,10 @@ class Model3D:
                     self._get_single_transf_qt(transfDict, key)
 
             self._transf_quats = transfDict.copy()
-            #for qt, off in transfDict.values():
-                #print()
-                #print(qt)
-                #print(off)
+
             transf_mats = dict()
             for key, (qt, offset) in transfDict.items():
+                #print(key, qt, offset)
                 trmat = np.eye(4)
                 trmat[:3, :3] = quat.as_rotation_matrix(qt)
                 trmat[:3, -1] = offset
@@ -793,7 +695,7 @@ class Model3D:
             seg = self._segments.get(num)
             seg_qt = seg.quaternion_state
             offset = seg.offset
-            transf = parent_qt * seg_qt 
+            transf = parent_qt * seg_qt
 
             abs_offset = point_fromB(quat.as_rotation_matrix(parent_qt), parent_offset, offset) 
 
@@ -831,6 +733,8 @@ def create_robot():
     val = mod.add_segment(val, name="J4", rotation_axis ="-x",  offset=[0,0,0.02])
     val = mod.add_segment(val, name="J5", rotation_axis = "y",  offset=[0.26,0,0])
     val = mod.add_segment(val, name="J6", rotation_axis= "-x",  offset=[0.075,0,0])
+
+    #mod.transf_quats[5]
     #val = mod.add_segment(val, name="J1", axis="x", up="-z", offset=[0,0,0.345])
     #"2"
     #val = mod.add_segment(val, name="J2", axis="y", up="-x", offset=[0.02,0,0])
@@ -854,23 +758,24 @@ def animate(i):
     amplitude = 10
     global phase
 
-    cycle = 45
-    step = 360 / cycle
+    cycle = 20
+    step = -40 / cycle
+    traillen = 5 * cycle
 
     if not ((i+1) % cycle):
-        phase = (phase + 1) % 6
+        phase = (phase + 1) % 5
 
     #phase = 5
     if phase == 0:
-        robot[1].angle += step
+        robot[1].angle += step * 2
     elif phase == 1:
-        robot[2].angle += step
+        robot[2].angle += step * 0.5
     elif phase == 2:
-        robot[3].angle += step
+        robot[3].angle += step * 2
     elif phase == 3:
-        robot[4].angle += step
+        robot[4].angle += step * 3
     elif phase == 4:
-        robot[5].angle += step
+        robot[5].angle += step * 5
     else:
         robot[6].angle += step
 
@@ -893,11 +798,11 @@ def animate(i):
 
     end_point = point_fromB(orien, offset=offset, point=[0,0,0])
     trail.append(end_point)
-    pts = np.array(trail[-cycle:]).T
+    pts = np.array(trail[-traillen:]).T
     cols = np.clip(0,1, np.absolute(pts).T*2)
     ax.scatter(pts[0, :], pts[1, :], pts[2, :], c=cols)
 
-    ed = 0.5
+    ed = 0.6
     ax.set_xlim([-ed, ed])
     ax.set_ylim([-ed, ed])
     ax.set_zlim([0, ed])
@@ -914,7 +819,7 @@ if __name__ == "__main__":
 
 
     robot.draw(ax)
-    ani = FuncAnimation(fig, animate, interval=50)
+    ani = FuncAnimation(fig, animate, interval=5)
     plt.show()
 
     ed = 2
