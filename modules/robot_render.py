@@ -1,10 +1,12 @@
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import math
 import time
 import os
 
 from itertools import product, cycle
+from matplotlib.animation import FuncAnimation
+from mpl_toolkits import mplot3d
 
 from robotic.model3d import Segment, Model3D
 from urdfpy import URDF
@@ -12,6 +14,7 @@ from stl import mesh
 
 from utils.models import Cube, Tube
 from utils.utils import render_axis, render_plane
+from robotic.model3d import point_fromB, point_fromA
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -79,6 +82,8 @@ def main():
     stl5_vis = mesh.Mesh.from_file(stl5_vis)
     stl6_vis = mesh.Mesh.from_file(stl6_vis)
 
+    meshes = [None, stl1_vis, stl2_vis, stl3_vis, stl4_vis, stl5_vis, stl6_vis]
+
     glRotate(-90, 1, 0, 0)
     glRotate(90, 0, 0, 1)
     glTranslate(0.8, -0.35, -0.2)
@@ -86,7 +91,6 @@ def main():
     glRotate(35, 0, 0, 1)
     glPushMatrix()
 
-    #gluLookAt(0,2,0.4, 0,0,0, 0,0,1)
     N = 20
     pts = 20
 
@@ -100,12 +104,32 @@ def main():
         (0,1,0.5),
     ])
     robot = create_robot()
-    #robot[2].angle = -60
 
     plane = []
     for val in np.linspace(-N/2, N/2, pts):
         plane.append([(-N/2, val, 0),(N/2, val, 0)])
         plane.append([(val, -N/2, 0),(val, N/2, 0)])
+
+
+    for stl_mesh, key in zip(meshes, range(0, 7)):
+        color = next(MESH_COLORS)
+        glColor(color)
+        if stl_mesh:
+            vect = stl_mesh.vectors
+            glLineWidth(1)
+            glPushMatrix()
+            #glTranslate(*abs_offset)
+            #glRotate(*Qvec)
+
+            glNewList(key, GL_COMPILE)
+            glBegin(GL_LINES)
+            for vex in vect:
+                for pt in vex:
+                    glVertex3f(*pt)
+                glVertex3f(*vex[0])
+            glEnd()
+            glEndList()
+            glPopMatrix()
 
     end_it = False
     pause = False
@@ -176,7 +200,7 @@ def main():
                     glRotatef(ang, 1, 0, 0)
 
         if pause == True:
-            pygame.time.wait(300)
+            pygame.time.wait(100)
             continue
         "END EVENTS"
 
@@ -192,7 +216,6 @@ def main():
         all_qt = robot.transf_quats
         glPushMatrix()
         prev = [0,0,0]
-        meshes = [None, stl1_vis, stl2_vis, stl3_vis, stl4_vis, stl5_vis, stl6_vis]
         model = glGetFloatv(GL_MODELVIEW_MATRIX)
         #print()
         #print(model)
@@ -237,22 +260,24 @@ def main():
             prev = point
 
             "Mesh render"
-            #glEnable(GL_DEPTH_TEST)
+            glEnable(GL_DEPTH_TEST)
+
             color = next(MESH_COLORS)
             glColor(color)
             if stl_mesh:
-                vect = stl_mesh.vectors
+                #vect = stl_mesh.vectors
                 glLineWidth(1)
                 glPushMatrix()
                 glTranslate(*abs_offset)
-                #glRotate(*Qvec)
-
-                glBegin(GL_LINES)
-                for vex in vect:
-                    for pt in vex:
-                        glVertex3f(*pt)
-                    glVertex3f(*vex[0])
-                glEnd()
+                glCallList(key)
+                ##glRotate(*Qvec)
+#
+                #glBegin(GL_LINES)
+                #for vex in vect:
+                    #for pt in vex:
+                        #glVertex3f(*pt)
+                    #glVertex3f(*vex[0])
+                #glEnd()
                 glPopMatrix()
 
         glPopMatrix()
@@ -263,6 +288,106 @@ def main():
     pygame.quit()
 
 
-main()
+def load_meshes():
+    robot_dir = os.path.join("kuka_experimental", "kuka_kr3_support")
+
+    stl1_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_1.stl")
+    )
+    stl2_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_2.stl")
+    )
+    stl3_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_3.stl")
+    )
+    stl4_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_4.stl")
+    )
+    stl5_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_5.stl")
+    )
+    stl6_vis = os.path.abspath(
+        os.path.join(robot_dir, "meshes", "kr3r540", "visual", "link_6.stl")
+    )
+
+    stl1_vis = mesh.Mesh.from_file(stl1_vis)
+    stl2_vis = mesh.Mesh.from_file(stl2_vis)
+    stl3_vis = mesh.Mesh.from_file(stl3_vis)
+    stl4_vis = mesh.Mesh.from_file(stl4_vis)
+    stl5_vis = mesh.Mesh.from_file(stl5_vis)
+    stl6_vis = mesh.Mesh.from_file(stl6_vis)
+    meshes = (stl1_vis, stl2_vis, stl3_vis, stl4_vis, stl5_vis, stl6_vis)
+    return meshes
+
+
+def animate(i):
+    #if i == 0:
+        #time.sleep(1)
+    global phase
+
+    cycle = 40
+    step = -(360) / cycle
+    traillen = 2 * cycle
+
+    if not ((i+1) % cycle):
+        phase = (phase + 1) % 6
+
+    robot[1].angle = i*4
+    robot[2].angle = -i/2
+    robot[3].angle = i*2
+    robot[4].angle = i*1.6
+    robot[5].angle = i*7
+    robot[6].angle = i
+
+
+
+
+    ax.clear()
+    trf = robot.transf_mats
+    robot.draw(ax, ax_size=0.03, textsize=8)
+    end_trf = robot.transf_mats[6]
+    orien = end_trf[:3, :3]
+    offset = end_trf[:3, -1]
+
+    end_point = point_fromB(orien, offset=offset, point=[0,0,0])
+    trail.append(end_point)
+    pts = np.array(trail[-traillen:]).T
+    cols = np.clip(np.absolute(pts).T*2+[0,0,-0.3], 0, 1)
+    ax.scatter(pts[0, :], pts[1, :], pts[2, :], c=cols)
+
+    for num in range(1,7):
+        msh = robot[num].mesh
+        #print(vect)
+        #vect = vect.T
+        vecs = msh.vectors + robot.transf_mats[num][:3,-1]
+        ax.add_collection3d(mplot3d.art3d.Poly3DCollection(
+            vecs[list(range(0, vecs.shape[0], 2)),:,:])
+        )
+        #for num, vex in enumerate(vect):
+            ##print(vex)
+            #plt.plot(vex, vect[:, num-1], c=(1,0,0))
+
+    ed = 0.6
+    ax.set_xlim([-ed, ed])
+    ax.set_ylim([-ed, ed])
+    ax.set_zlim([0, ed])
+
+
+if __name__ == '__main__':
+    main()
+    #robot = create_robot()
+    #meshes = load_meshes()
+    #for num, mesh in enumerate(meshes, 1):
+        #robot[num].mesh = mesh
+#
+    #phase = 0
+    #fig = plt.figure(figsize=(10,7))
+    #ax = plt.gca(projection="3d")
+    #trail = []
+    ##ani = FuncAnimation(fig, animate, interval=10)
+    #animate(0)
+    #plt.show()
+
+
 
 

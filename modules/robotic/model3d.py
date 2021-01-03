@@ -641,7 +641,7 @@ class Model3D:
         return self._segments.get(key, None)
 
     @staticmethod
-    def _draw_axis(ax, transf, ax_size=1, line_width=3, text=None):
+    def _draw_axis(ax, transf, ax_size=1, line_width=3, text=None, textsize=15, weight=800):
         "Draw axis for univeral styling"
         points_pairs = np.array([
             [0, 0, 0, 1], [ax_size, 0, 0, 1],
@@ -657,7 +657,7 @@ class Model3D:
 
         if text:
             ax.text(*abs_points[:3, -1], text,
-                    fontdict={"size": 15, "weight": 800}
+                    fontdict={"size": textsize, "weight": weight}
                     )
 
     def calculate_transformations(self, inquaternions=True):
@@ -754,29 +754,38 @@ def create_robot():
 
 def animate(i):
     #print(i)
+    if i == 0:
+        time.sleep(1)
     interval = 80
     amplitude = 10
     global phase
 
-    cycle = 20
-    step = -40 / cycle
-    traillen = 5 * cycle
+    cycle = 40
+    step = -(360) / cycle
+    traillen = 2 * cycle
 
     if not ((i+1) % cycle):
-        phase = (phase + 1) % 5
+        phase = (phase + 1) % 6
 
-    #phase = 5
+    #robot[1].angle = i*4
+    #robot[2].angle = -i/2
+    #robot[3].angle = i*2
+    #robot[4].angle = i*1.6
+    #robot[5].angle = i*7
+    #robot[6].angle = i
     if phase == 0:
-        robot[1].angle += step * 2
+        robot[1].angle += step
     elif phase == 1:
-        robot[2].angle += step * 0.5
+        robot[2].angle += step# * 0.5
     elif phase == 2:
-        robot[3].angle += step * 2
+        robot[3].angle += step# * 2
     elif phase == 3:
-        robot[4].angle += step * 3
+        robot[4].angle += step# * 3
     elif phase == 4:
-        robot[5].angle += step * 5
+        robot[5].angle += step# * 5
     else:
+        #robot[1].angle += -90 + step
+        #phase = 1
         robot[6].angle += step
 
     #print(robot.joints)
@@ -791,7 +800,7 @@ def animate(i):
 
     ax.clear()
     trf = robot.transf_mats
-    robot.draw(ax, ax_size=0.1)
+    robot.draw(ax, ax_size=0.04, textsize=12)
     end_trf = robot.transf_mats[6]
     orien = end_trf[:3, :3]
     offset = end_trf[:3, -1]
@@ -799,7 +808,7 @@ def animate(i):
     end_point = point_fromB(orien, offset=offset, point=[0,0,0])
     trail.append(end_point)
     pts = np.array(trail[-traillen:]).T
-    cols = np.clip(0,1, np.absolute(pts).T*2)
+    cols = np.clip(np.absolute(pts).T*2+[0,0,-0.3], 0, 1)
     ax.scatter(pts[0, :], pts[1, :], pts[2, :], c=cols)
 
     ed = 0.6
@@ -819,7 +828,7 @@ if __name__ == "__main__":
 
 
     robot.draw(ax)
-    ani = FuncAnimation(fig, animate, interval=5)
+    ani = FuncAnimation(fig, animate, interval=10)
     plt.show()
 
     ed = 2
