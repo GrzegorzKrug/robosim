@@ -154,10 +154,8 @@ def plot_single(ax):
 box = np.array([
     #[0,0,1],
     #[-0.2,0.1, 0.3],
-    [0, 0, 0.5],
-    [0.2, 0, 0.5],
-    [0, 0.3, 0.8],
-    [-0.4, 0, 0.3],
+    [0.3, 0, 0.0],
+    [0, 0.4, 0.5],
 
 ]) + np.array([1,0,0])
 box = box.T
@@ -165,13 +163,13 @@ box = box.T
 def animate(i):
     i = i/15
     points = np.array([
-        *[(math.sin(p)*0.5+1, math.cos(p)*.5, math.sin(i)*0.3+0.2) for p in np.linspace(0, 2*math.pi, 50)],
+        *[(math.sin(p)*0.5+1, math.cos(p)*.5, math.sin(i)*1.3+0.2) for p in np.linspace(0, 2*math.pi, 100)],
     ])
     ax.clear()
     color_mod = (0.2, 5, 1.9)
     dests, dists = find_closest_points(points)
     dests = dests.T
-    dists = np.clip(dists, 0.1, 5)*5
+    dists = np.clip(dists, 0.1, 3)*3
 
     color = np.clip(dests*color_mod + points*0.4, 0, 1)
 
@@ -192,9 +190,10 @@ def animate(i):
     ax.set_ylim([-lim/2, lim/2])
     ax.set_zlim([-lim/2, lim/2])
     #ax.autoscale(enable=True)
-    pitch = 10 + math.cos(i/10)*20
-    pitch = 20
+    pitch = 10 + math.cos(i/3)*20
+    pitch = 50
     yaw = 60 + i*3
+    yaw = 30
     ax.view_init(pitch, yaw)
 
 #plt.grid()
