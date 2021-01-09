@@ -324,11 +324,41 @@ class DistanceStruct:
         if best_pt is not None:
             return True, best_pt, best_dist
 
+        else:
+            ini, inj, ink = 1,1,1
+            #keys = [key]
+            #for x in range(int(ini)+1):
+                #for y in range(int(inj)+1):
+                    #for z in range(int(ink)+1):
+                        #keys.append(
+                            #f"{x ^ i}" \
+                            #+ f"{y ^ j}"\
+                            #+ f"{z ^ k}"
+                        #)
+            #keys = set(keys)
+            #keys.remove(key)
+            keys = [f"{1-i}{j}{k}", f"{i}{1-j}{k}", f"{i}{j}{1-k}"]
+            #keys = list(keys)
+            for key in keys:
+                ob = self._struct.get(key)
+                if ob is None:
+                    continue
+                valid, pt, dist = ob._closest_point(poi)
+                if valid and dist < best_dist:
+                    best_dist = dist
+                    best_pt = pt
+
+            if best_pt is not None:
+                return True, best_pt, best_dist
+            else:
+                keys.append(f"{i}{j}{k}")
 
         "use pivot to get closest"
         piv_dist = math.inf
         for key, ob in self._struct.items():
-            if ob and key not in keys:
+            if key in keys:
+                continue
+            if ob:
                 dist = ob.pivot_distance(poi)
                 #arc = 2 * math.pi * dist
                 if self.size > 100 and self.gap_magn**2 < dist:
