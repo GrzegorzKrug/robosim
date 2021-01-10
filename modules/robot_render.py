@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import quaternion
 import numpy as np
 import math
 import time
@@ -14,7 +15,7 @@ from stl import mesh
 
 from utils.models import Cube, Tube
 from utils.utils import render_axis, render_plane
-from robotic.model3d import point_fromB, point_fromA
+from robotic.model3d import point_fromB, point_fromA, get_quat
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -39,8 +40,61 @@ def create_robot():
     #mod.visualise(ax_size=0.1)
     return mod
 
+def control(key):
+    model = glGetDoublev(GL_MODELVIEW_MATRIX)
+    """
+    GL_MODELVIEW_MATRIX
+    Matrix describes BA Transform
+    M.T = AB+P
+    model.T = T_VA
+    model.T = Transformv_Visual_Absolute
+    """
+    rot = model[:3, :3]
+    step = 0.1
+    if key == pygame.K_UP:
+        pt = np.dot(rot, (0,0,step))
+        pt[1] = pt[1] / (1-pt[2])
+        pt[2] = 0
+        glTranslate(*pt)
+    elif key == pygame.K_DOWN:
+        pt = np.dot(rot, (0,0,-step))
+        pt[1] = pt[1] / (1-pt[2])
+        pt[2] = 0
+        glTranslate(*pt)
+    elif key == pygame.K_LEFT:
+        pt = np.dot(rot, (step,0,0))
+        pt[0] = pt[0] / (1-pt[2])
+        pt[2] = 0
+        glTranslate(*pt)
+    elif key == pygame.K_RIGHT:
+        pt = np.dot(rot, (-step,0,0))
+        pt[0] = pt[0] / (1-pt[2])
+        pt[2] = 0
+        glTranslate(*pt)
+    elif key == pygame.K_KP_PLUS:
+        glTranslate(0, 0, step)
+    elif key == pygame.K_KP_MINUS:
+        glTranslate(0, 0,-step)
+
+    ang = 5
+    if key == pygame.K_KP8:
+        glRotatef(ang, 0, -1, 0)
+    elif key == pygame.K_KP2:
+        glRotatef(ang, 0, 1, 0)
+    elif key == pygame.K_KP4:
+        glRotatef(ang, 0, 0, 1)
+    elif key == pygame.K_KP5:
+        glPopMatrix()
+        glPushMatrix()
+    elif key == pygame.K_KP6:
+        glRotatef(ang, 0, 0, -1)
+    elif key == pygame.K_KP7:
+        glRotatef(ang, -1, 0, 0)
+    elif key == pygame.K_KP9:
+        glRotatef(ang, 1, 0, 0)
 
 def main():
+    keyCache = dict()
     pygame.init()
 
     display = (1200, 700)
@@ -89,6 +143,7 @@ def main():
     glTranslate(0.8, -0.35, -0.2)
     glRotate(20, 0, -1, 0)
     glRotate(35, 0, 0, 1)
+    glTranslate(0,0,-0.1)
     glPushMatrix()
 
     N = 20
@@ -104,6 +159,7 @@ def main():
         (0,1,0.5),
     ])
     robot = create_robot()
+    robot[1].angle = 30
 
     plane = []
     for val in np.linspace(-N/2, N/2, pts):
@@ -142,62 +198,22 @@ def main():
                 if event.key in (pygame.K_ESCAPE, pygame.K_q):
                     end_it = True
                     break
-                if event.key == pygame.K_SPACE:
+                elif event.key == pygame.K_SPACE:
                     pause ^= True
+                else:
+                    keyCache[event.key] = True
+                    print(event.key)
 
-                model = glGetDoublev(GL_MODELVIEW_MATRIX)
-                """
-                GL_MODELVIEW_MATRIX
-                Matrix describes BA Transform
-                M.T = AB+P
-                model.T = T_VA
-                model.T = Transformv_Visual_Absolute
-                """
-                rot = model[:3, :3]
-                step = 0.1
-                if event.key == pygame.K_UP:
-                    pt = np.dot(rot, (0,0,step))
-                    pt[1] = pt[1] / (1-pt[2])
-                    pt[2] = 0
-                    glTranslate(*pt)
-                elif event.key == pygame.K_DOWN:
-                    pt = np.dot(rot, (0,0,-step))
-                    pt[1] = pt[1] / (1-pt[2])
-                    pt[2] = 0
-                    glTranslate(*pt)
-                elif event.key == pygame.K_LEFT:
-                    pt = np.dot(rot, (step,0,0))
-                    pt[0] = pt[0] / (1-pt[2])
-                    pt[2] = 0
-                    glTranslate(*pt)
-                elif event.key == pygame.K_RIGHT:
-                    pt = np.dot(rot, (-step,0,0))
-                    pt[0] = pt[0] / (1-pt[2])
-                    pt[2] = 0
-                    glTranslate(*pt)
-                elif event.key == pygame.K_KP_PLUS:
-                    glTranslate(0, 0, step)
-                elif event.key == pygame.K_KP_MINUS:
-                    glTranslate(0, 0,-step)
 
-                ang = 5
-                if event.key == pygame.K_KP8:
-                    glRotatef(ang, 0, -1, 0)
-                elif event.key == pygame.K_KP2:
-                    glRotatef(ang, 0, 1, 0)
-                elif event.key == pygame.K_KP4:
-                    glRotatef(ang, 0, 0, 1)
-                elif event.key == pygame.K_KP5:
-                    pass
-                    glPopMatrix()
-                    glPushMatrix()
-                    #gluLookAt(5,0,2, 0,0,0, 0,0,1)
-                elif event.key == pygame.K_KP6:
-                    glRotatef(ang, 0, 0, -1)
-                elif event.key == pygame.K_KP7:
-                    glRotatef(ang, -1, 0, 0)
-                elif event.key == pygame.K_KP9:
-                    glRotatef(ang, 1, 0, 0)
+            if event.type == pygame.KEYUP:
+                try:
+                    keyCache.pop(event.key)
+                except KeyError:
+                    print(f"Key is not in keycache: {event.key}")
+
+        for key in keyCache.keys():
+            control(key)
+
 
         if pause == True:
             pygame.time.wait(100)
@@ -207,78 +223,104 @@ def main():
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         render_axis()
         render_plane(plane)
+        robot[1].angle = 0
+        robot[2].angle = (time.time()*10)%720
+        robot[4].angle = (time.time()*50)%720
 
         glMatrixMode(GL_MODELVIEW)
         #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
-        all_TR = robot.transf_mats
-        all_qt = robot.transf_quats
-        glPushMatrix()
+        transf_mats = robot.transf_mats
+        transf_quats = robot.transf_quats
         prev = [0,0,0]
         model = glGetFloatv(GL_MODELVIEW_MATRIX)
         #print()
         #print(model)
 
+        glPushMatrix()
         for stl_mesh, key in zip(meshes, range(0, 7)):
+            skelet = np.dot(transf_mats[key], [0,0,0,1])[:3]
+            glBegin(GL_LINES)
+            glVertex3fv(prev)
+            glVertex3fv(skelet)
+            glEnd()
+
+            prev = skelet
             glDisable(GL_DEPTH_TEST)
 
             glLineWidth(15)
             glColor(1,0.6,0)
+
+        glPopMatrix()
+
+        glPushMatrix()
+        #glLoadIdentity()
+        #glTranslate(0,0,-3)
+
+        for stl_mesh, key in zip(meshes, range(0, 7)):
+            "Robot Segment"
             segment = robot[key]
-            trf = segment.transformation
-            #Qvec = segment._quaternion
-            some = all_qt.get(key)
-            #print(key, some)
-            QT, abs_offset = some
-            #QT = QT.transpose()
+            quat = transf_quats.get(key)
+            transf_abs = transf_mats.get(key)
+
+            QT, abs_offset = quat
             Qvec = math.degrees(QT.angle()), QT.x, QT.y, QT.z
-            #print(Qvec, QT)
-            #point = segment.get_point_fromB([0,0,0])
-            #point = point + prev
 
-            point = np.dot(all_TR[key], [0,0,0,1])[:3]
-            #print(str(prev).ljust(30), str(point))
-
-            glBegin(GL_LINES)
-            glVertex3fv(prev)
-            glVertex3fv(point)
-            glEnd()
-
-            #glLineWidth(2)
-            #glBegin(GL_LINES)
-            #glColor(0.7,0,0)
-            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
-            #glVertex3fv(prev + segment.get_point_fromB([1,0,0]))
-            #glColor(0,0.7,0)
-            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
-            #glVertex3fv(prev + segment.get_point_fromB([0,1,0]))
-            #glColor(0,0,0.7)
-            #glVertex3fv(prev + segment.get_point_fromB([0,0,0]))
-            #glVertex3fv(prev + segment.get_point_fromB([0,0,1]))
-            #glEnd()
-            prev = point
-
-            "Mesh render"
             glEnable(GL_DEPTH_TEST)
-
             color = next(MESH_COLORS)
             glColor(color)
+
             if stl_mesh:
-                #vect = stl_mesh.vectors
+                glTranslate(0,0,0.01)
                 glLineWidth(1)
-                glPushMatrix()
-                glTranslate(*abs_offset)
+                #if key == 1:
+                    ##print(QT)
+                    #print(Qvec)
+
+                    #print(Qvec)
+                    #glRotate(90, 0,0,1)
+
+                #glRotate(segment.angle, 0, 0, 1)
+                #rotmat = transf_mats[key]
+
+                #glMultMatrix(rotmat)
+                #glMultMatrixf(rotmat)
+
+                #glMultMatrixf(segment.transf_state.T)
+
+                #mat = get_quat(segment.angle, [0,0,1])
+                rot_mat = np.eye(4)
+                #rot_mat[:3, :3] = quaternion.as_rotation_matrix(mat)
+                rot_mat[:3, :3] = segment.orientation_mat_state
+
+                #glPushMatrix()
+                #if key == 2:
+                    #glRotate(30, 0,1,0)
+                    #glMultMatrixf(rot_mat)
+                    #glMultMatrixf
+                QT = segment.orientation_state
+                Qvec = math.degrees(QT.angle()), QT.x, QT.y, QT.z
+
+                #glTranslate(*segment.offset)
                 glCallList(key)
-                ##glRotate(*Qvec)
-#
-                #glBegin(GL_LINES)
-                #for vex in vect:
-                    #for pt in vex:
-                        #glVertex3f(*pt)
-                    #glVertex3f(*vex[0])
-                #glEnd()
-                glPopMatrix()
+                #glRotate(*Qvec)
+                #glMultMatrixf(rot_mat)
+
+                #glPopMatrix()
+
+                child_mat = transf_mats[key]
+                #rot_mat = np.eye(4)
+                #rot_mat[:3, :3] = child_mat
+                #glTranslate(*segment.offset)
+                rot_mat = np.eye(4)
+                rot_mat[:3, :3] = segment.orientation_mat_state.T
+                #glTranslate(*segment.offset)
+                #glMultMatrixf(rot_mat)
+
+
+                #glMultMatrixf(segment.transf_state)
+                #print(segment.offset)
 
         glPopMatrix()
 

@@ -247,7 +247,7 @@ class RelativeCoordinate:
         return qt
 
     @staticmethod
-    def get_rotation_matrix(axis, rad: "Angle in Radians"):
+    def get_rotation_matrix(rad: "Angle in Radians", axis):
         """
         Rotation matrix
         """
@@ -281,11 +281,17 @@ class RelativeCoordinate:
 
     @angle.setter
     def angle(self, new_val):
+        self._transf_need_up = True
         self._angle = new_val
 
     @property
     def transf(self):
+        "Redundandt property"
         return self.transformation
+    @property
+    def transf_state(self):
+        "Redundand property"
+        return self.transformation_state
 
     @property
     def quaternion(self):
@@ -301,14 +307,25 @@ class RelativeCoordinate:
         angle = self._angle - self.null
         qz = get_quat(angle, [0,0,1])
         Q = self._quaternion * qz
+        #Q = qz * self._quaternion
         return Q
 
     @property
     def orientation(self):
-        return quat.as_rotation_matrix(self.quaternion)
+        "Redundant of quaternion"
+        return self.quaternion
 
     @property
     def orientation_state(self):
+        "Redundant of quaternion state"
+        return self.quaternion_state
+
+    @property
+    def orientation_mat(self):
+        return quat.as_rotation_matrix(self.quaternion)
+
+    @property
+    def orientation_mat_state(self):
         return quat.as_rotation_matrix(self.quaternion_state)
 
     ##@property
@@ -322,7 +339,7 @@ class RelativeCoordinate:
 
     @property
     def transformation(self):
-        orient = self.orientation
+        orient = self.orientation_mat
         transf = np.eye(4)
         transf[:3, :3] = orient
         transf[:3, -1] = self.offset
@@ -330,7 +347,7 @@ class RelativeCoordinate:
 
     @property
     def transformation_state(self):
-        orient = self.orientation_state
+        orient = self.orientation_mat_state
         transf = np.eye(4)
         transf[:3, :3] = orient
         transf[:3, -1] = self.offset
@@ -349,7 +366,7 @@ class RelativeCoordinate:
         """
         assert len(point) >= 3, "Point has to have at least 3 coords"
         point = np.array(point) - self.offset
-        orien = self.orientation_state.T
+        orien = self.orientation_mat_state.T
         return np.dot(orien, point)
 
     def get_point_fromB(self, point, apply_translation=True):
@@ -358,7 +375,7 @@ class RelativeCoordinate:
         """
         assert len(point) >= 3, "Point has to have at least 3 coords"
         point = np.array(point)
-        pointinA = np.dot(self.orientation_state, point)
+        pointinA = np.dot(self.orientation_mat_state, point)
         pointinA += self.offset
         return pointinA
 
