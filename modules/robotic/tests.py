@@ -294,7 +294,7 @@ def test27_rotDefinition():
         [0, 1, 0],
         [0, 0, 1],
     ])
-    assert np.absolute(cord.orientation - mat).sum() < maxError, "Error is too big"
+    assert np.absolute(cord.orientation_mat - mat).sum() < maxError, "Error is too big"
 
 
 def test32_rotDefinition():
@@ -306,13 +306,13 @@ def test32_rotDefinition():
         [0, 1, 0],
         [0, 0, 1],
     ])
-    assert np.absolute(cord.orientation - mat).sum() < maxError, "Error is too big"
+    assert np.absolute(cord.orientation_mat - mat).sum() < maxError, "Error is too big"
 
 def test34_():
     "TEST X : Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="x", up="z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -330,7 +330,7 @@ def test35_():
     "TEST X : -Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="x", up="-z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -348,7 +348,7 @@ def test36_():
     "TEST -X : Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-x", up="z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -366,7 +366,7 @@ def test37_():
     "TEST -X : -Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-x", up="-z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -384,7 +384,7 @@ def test38_():
     "TEST X : Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="x", up="y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -402,7 +402,7 @@ def test39_():
     "TEST X : -Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="x", up="-y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -420,7 +420,7 @@ def test40_():
     "TEST -X : Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-x", up="y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -438,7 +438,7 @@ def test41_():
     "TEST -X : -Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-x", up="-y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -456,7 +456,7 @@ def test42_():
     "TEST Y : Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="y", up="z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -474,7 +474,7 @@ def test43_():
     "TEST Y : -Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="y", up="-z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -492,7 +492,7 @@ def test44_():
     "TEST Y : X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="y", up="x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -510,7 +510,7 @@ def test45_():
     "TEST Y : -X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="y", up="-x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -528,7 +528,7 @@ def test46_():
     "TEST -Y : Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-y", up="z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -546,7 +546,7 @@ def test47_():
     "TEST -Y : -Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-y", up="-z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -564,7 +564,7 @@ def test48_():
     "TEST -Y : X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-y", up="x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -582,7 +582,7 @@ def test49_():
     "TEST -Y : -X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-y", up="-x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -600,7 +600,7 @@ def test50_():
     "TEST Z : -X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="Z", up="-x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -618,7 +618,7 @@ def test51_():
     "TEST Z : X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="z", up="x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -636,7 +636,7 @@ def test52_():
     "TEST Z : Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="Z", up="Y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -654,7 +654,7 @@ def test53_():
     "TEST Z : -Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="z", up="-y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -672,7 +672,7 @@ def test54_():
     "TEST -Z : X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-z", up="x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -690,7 +690,7 @@ def test55_():
     "TEST -Z : -X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-z", up="-x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -708,7 +708,7 @@ def test56_():
     "TEST -Z : y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-z", up="y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -726,7 +726,7 @@ def test57_():
     "TEST -Z : -y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-z", up="-y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -744,7 +744,7 @@ def test59_():
     "TEST X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -762,7 +762,7 @@ def test60_():
     "TEST -X"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-x")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -780,7 +780,7 @@ def test61_():
     "TEST Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -798,7 +798,7 @@ def test62_():
     "TEST -Y"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-y")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -816,7 +816,7 @@ def test63_():
     "TEST Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
@@ -834,7 +834,7 @@ def test64_():
     "TEST -Z"
     maxError = 1e-5
     cord = RelativeCoordinate(axis="-z")
-    transf = cord.orientation
+    transf = cord.orientation_mat
     points = np.eye(3)
     res = np.dot(transf, points)
     solution = np.array([
