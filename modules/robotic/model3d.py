@@ -1,8 +1,9 @@
-from mpl_toolkits.mplot3d import Axes3D
 from quaternion import quaternion
 from functools import wraps
 from copy import copy, deepcopy
+
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
 
 import quaternion as quat
 import matplotlib.pyplot as plt
@@ -87,16 +88,11 @@ class RelativeCoordinate:
         self._transformation = None
         self._quaternion = None
 
-        "Linear move"
-        self.pos = pos
-        "Joint Move"
-        self._angle = angle
-        self.null = null
 
         if offset is not None:
-            self.offset = np.array(offset)
+            self._offset = np.array(offset)
         else:
-            self.offset = np.array([0,0,0])
+            self._offset = np.array([0,0,0])
 
         self.set_transformation(*args, **kwargs)
 
@@ -107,23 +103,17 @@ class RelativeCoordinate:
         qt = self.get_qt_from_ax(axis, up)
         self.quaternion = qt
 
+    @property
+    def offset(self):
+        "Returns child offset"
+        return self._offset
 
-    #@staticmethod
-    #def get_quat(deg, axis):
-        #"""
-        #Generate quad from degrees and axis vector.
-        #Remeber to normalize quaternion!
-        #Args:
-            #deg - value in degrees
-            #axis - axis vector should be normalized to 1
-        #"""
-        #axis = np.array(axis)
-        #radians = math.radians(deg)
-        #c1 = math.cos(radians/2)
-        #s1 = math.sin(radians/2)
-        #sins = s1* np.array(axis)
-        #q1 = quaternion(c1, *sins)
-        #return q1
+    @offset.setter
+    def offset(self, offset):
+        offset = np.array(offset)
+        assert offset.shape == (3,), "Offset is in shape 3"
+        self._offset = offset
+        return self._offset
 
     @classmethod
     def get_qt_from_ax(self, axis=None, up=None):
@@ -243,7 +233,7 @@ class RelativeCoordinate:
             axis - xyz letter or size3 List / Array
         """
         qt = self.get_rotation(*args, **kwargs)
-        self._quaternion = qt * self._quaternion
+        self._quaternion = self._quaternion * qt
         return qt
 
     @staticmethod
@@ -288,10 +278,10 @@ class RelativeCoordinate:
     def transf(self):
         "Redundandt property"
         return self.transformation
+
     @property
-    def transf_state(self):
-        "Redundand property"
-        return self.transformation_state
+    def orientation_mat(self):
+        return quat.as_rotation_matrix(self.quaternion)
 
     @property
     def quaternion(self):
@@ -303,39 +293,9 @@ class RelativeCoordinate:
         self._quaternion = new_qt
 
     @property
-    def quaternion_state(self):
-        angle = self._angle - self.null
-        qz = get_quat(angle, [0,0,1])
-        Q = self._quaternion * qz
-        #Q = qz * self._quaternion
-        return Q
-
-    @property
     def orientation(self):
         "Redundant of quaternion"
         return self.quaternion
-
-    @property
-    def orientation_state(self):
-        "Redundant of quaternion state"
-        return self.quaternion_state
-
-    @property
-    def orientation_mat(self):
-        return quat.as_rotation_matrix(self.quaternion)
-
-    @property
-    def orientation_mat_state(self):
-        return quat.as_rotation_matrix(self.quaternion_state)
-
-    ##@property
-    #def get_inverse(self):
-        #orient = self.orientation
-        #transf = np.eye(4)
-        #transf[:3, :3] = orient.T
-        #transf[:3, -1] = self.offset
-        #transf[:3, 3] = -np.dot(transf[:3, :3], transf[:3, 3])
-        #return transf
 
     @property
     def transformation(self):
@@ -344,17 +304,6 @@ class RelativeCoordinate:
         transf[:3, :3] = orient
         transf[:3, -1] = self.offset
         return transf
-
-    @property
-    def transformation_state(self):
-        orient = self.orientation_mat_state
-        transf = np.eye(4)
-        transf[:3, :3] = orient
-        transf[:3, -1] = self.offset
-        return transf
-
-    #def get_transformation(self):
-        #return self.transformation_state
 
     @property
     def endFrame(self):
@@ -366,7 +315,7 @@ class RelativeCoordinate:
         """
         assert len(point) >= 3, "Point has to have at least 3 coords"
         point = np.array(point) - self.offset
-        orien = self.orientation_mat_state.T
+        orien = self.orientation_mat.T
         return np.dot(orien, point)
 
     def get_point_fromB(self, point, apply_translation=True):
@@ -375,7 +324,7 @@ class RelativeCoordinate:
         """
         assert len(point) >= 3, "Point has to have at least 3 coords"
         point = np.array(point)
-        pointinA = np.dot(self.orientation_mat_state, point)
+        pointinA = np.dot(self.orientation_mat, point)
         pointinA += self.offset
         return pointinA
 
@@ -405,9 +354,9 @@ class RelativeCoordinate:
             [0, 0, 0, 0], [0, 0, 1, 0],
         ]).T
 
-        shadow = np.dot(self.transformation_state, new_axis)
+        shadow = np.dot(self.transformation, new_axis)
         new_axis[3, :] = 1
-        absolut = np.dot(self.transformation_state, new_axis)
+        absolut = np.dot(self.transformation, new_axis)
 
         a111_asb = self.get_point_fromA([1,1,1])
         b111_asa = self.get_point_fromB([1,1,1])
@@ -515,18 +464,84 @@ class RelativeCoordinate:
 
 
 class Segment(RelativeCoordinate):
-    def __init__(self, name=None, *args,
-            sgtype="joint", null=0, angle=0,
+    def __init__(self, /, rotation_axis=None, name=None,
+            sgtype="joint", null=0, angle=0, pos=0,
             **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
         self._limit_low = 0
         self._limit_up = math.pi
         self.name = name
+        self._rotation_vec = None
+        self.rotation_vec = rotation_axis
+
+        "Linear move"
+        self.pos = pos
+        "Joint Move"
+        self._angle = angle
+        self.null = null
 
         if sgtype != "joint":
             raise NotImplementedError(
                 "Only joint segments supported in current state")
 
+    @property
+    def rotation_vec(self):
+        return self._rotation_vec
+
+    @rotation_vec.setter
+    def rotation_vec(self, vec):
+        self._rotation_vec = None
+        if type(vec) is str:
+            vec = vec.lower()
+            if "x" in vec:
+                out = [1, 0, 0]
+            elif "y" in vec:
+                out = [0, 1, 0]
+            else:
+                out = [0, 0, 1]
+
+            rot_vec = np.array(out)
+            if "-" in vec:
+                rot_vec = rot_vec * -1
+
+            self._rotation_vec = rot_vec
+        elif vec:
+            vec = np.array(vec)
+            assert vec.shape in ((3,1), (3,)), f"Is this vector of 3? {vec.shape}"
+            self._rotation_vec = vec
+        else:
+            vec = np.array([0,0,1])
+            self._rotation_vec = vec
+
+    @property
+    def orientation_state(self):
+        "Redundant of quaternion state"
+        return self.quaternion_state
+
+    @property
+    def orientation_mat_state(self):
+        return quat.as_rotation_matrix(self.quaternion_state)
+
+    @property
+    def transformation_state(self):
+        orient = self.orientation_mat_state
+        transf = np.eye(4)
+        transf[:3, :3] = orient
+        transf[:3, -1] = self.offset
+        return transf
+
+    @property
+    def transf_state(self):
+        "Redundand property"
+        return self.transformation_state
+
+    @property
+    def quaternion_state(self):
+        angle = self._angle - self.null
+        qz = get_quat_normalised(angle, self.rotation_vec)
+        Q = self._quaternion * qz
+        #Q = qz * self.quaternion
+        return Q
 
 class Model3D:
     def __init__(self, anchor=None):
@@ -538,6 +553,8 @@ class Model3D:
         self._transf_need_up = True
         self._ax_directions = dict()
         #self._prev_axis = (None, None)
+
+        self.add_segment(name="anchor")
 
     def onChangeDec(fun):
         @wraps(fun)
@@ -559,49 +576,49 @@ class Model3D:
         elif rotation_axis:
             ret = self._add_absolute_segment(*args, rotation_axis=rotation_axis, **kwargs)
         else:
-            ret = self._add_relative_segment(*args, axis=axis, **kwargs)
+            ret = self._add_absolute_segment(*args, **kwargs)
         return ret
 
     @property
     def joints(self):
         return tuple(self[num].angle for num in range(len(self._segments)))
 
-    def _add_absolute_segment(self, parent_id, axis=None, up=None, rotation_axis=None,
+    def _add_absolute_segment(self, parent_id=None, axis=None, up=None, rotation_axis=None,
             *args, offset=None, **kwargs):
 
+        #raise ValueError("ASD")
         assert len(args) == 0, "Some Positional arguments are wasted: " + str(args)
 
         num = len(self._segments)
-        offset = np.array(offset)
-        rotation_axis = rotation_axis.lower()
-        self._ax_directions[num]['abs'] = rotation_axis
-        prev = self._ax_directions[parent_id]
-        self.transf_mats
-        quats = self.transf_quats
-        par_orientation = quats[parent_id][0]
+        #rotation_axis = rotation_axis.lower()
+        #self._ax_directions[num]['abs'] = rotation_axis
+        #prev = self._ax_directions[parent_id]
+        #self.transf_mats
+        #quats = self.transf_quats
+        #par_orientation = quats[parent_id][0]
 
 
-        if rotation_axis == "x":
-            qt = get_quat_normalised(-90, [0, 1, 0])
-        elif rotation_axis == '-x':
-            qt = get_quat_normalised(90, [0, 1, 0])
-        elif rotation_axis == 'y':
-            qt = get_quat_normalised(-90, [1, 0, 0])
-        elif rotation_axis == '-y':
-            qt = get_quat_normalised(90, [1, 0, 0])
-        elif rotation_axis == 'z':
-            qt = quaternion(1, 0,0,0)
-        elif rotation_axis == '-z':
-            qt = get_quat_normalised(180, [1, 0, 0])
-        else:
-            raise ValueError(f"This axis is wrong {rotation_axis}")
+        #if rotation_axis == "x":
+            #qt = get_quat_normalised(-90, [0, 1, 0])
+        #elif rotation_axis == '-x':
+            #qt = get_quat_normalised(90, [0, 1, 0])
+        #elif rotation_axis == 'y':
+            #qt = get_quat_normalised(-90, [1, 0, 0])
+        #elif rotation_axis == '-y':
+            #qt = get_quat_normalised(90, [1, 0, 0])
+        #elif rotation_axis == 'z':
+            #qt = quaternion(1, 0,0,0)
+        #elif rotation_axis == '-z':
+            #qt = get_quat_normalised(180, [1, 0, 0])
+        #else:
+            #raise ValueError(f"This axis is wrong {rotation_axis}")
 
-        par_inv = par_orientation.inverse()
-        absqt = par_inv * qt
+        #par_inv = par_orientation.inverse()
+        #absqt = par_inv * qt
 
-        rel_offset = point_fromB(quat.as_rotation_matrix(par_inv), point=offset)
-        new_seg = Segment(offset=rel_offset, **kwargs)
-        new_seg.quaternion = absqt
+        #rel_offset = point_fromB(quat.as_rotation_matrix(par_inv), point=offset)
+        new_seg = Segment(rotation_axis=rotation_axis, offset=offset, **kwargs)
+        #new_seg.quaternion = absqt
         self._add_segment(num, new_seg, parent_id)
 
         return num
@@ -621,14 +638,18 @@ class Model3D:
         """
         Add segment to class hierarchy
         """
+        if parent_id is not None:
+            assert parent_id in self._segments, f"This parent is not defined {parent_id}"
+        else:
+            parent_id = None if num == 0 else 0
         self._segments.update({num: new_segment})
         self._seg_map.update({num: parent_id})
         return num
 
-    def visualise(self, *args, **kwargs):
+    def visualise(self, *args, block=True, **kwargs):
         plt.figure(figsize=(16, 9))
         ax = plt.gca(projection="3d")
-        self.draw(ax)
+        self.draw(ax, *args, **kwargs)
         plt.show(block=block)
 
     def draw(self, ax, block=True, *args, **kwargs):
@@ -682,18 +703,21 @@ class Model3D:
         if self._transf_need_up:
             transfDict = dict()
 
+            "Create values inside dict"
             for key, parent in self._seg_map.items():
                 transf = transfDict.get(key, None)
                 if transf is None:
-                    self._get_single_transf_qt(transfDict, key)
+                    self._save_qt_to_dict(transfDict, key)
 
             self._transf_quats = transfDict.copy()
 
+            "Create matrices"
             transf_mats = dict()
             for key, (qt, offset) in transfDict.items():
-                #print(key, qt, offset)
                 trmat = np.eye(4)
                 trmat[:3, :3] = quat.as_rotation_matrix(qt)
+
+                #print(offset, type(offset))
                 trmat[:3, -1] = offset
                 transf_mats.update({key: trmat})
 
@@ -701,32 +725,35 @@ class Model3D:
             self._transf_need_up = False
         return self._transf_mats.copy()
 
-    def _get_single_transf_qt(self, transfDict=None, num=0):
+    def _save_qt_to_dict(self, transfDict, num=0):
+        """
+        Get single transformation from absolute parent transf
+        """
         parent_num = self._seg_map.get(num)
         if parent_num is not None:
             parent = transfDict.get(parent_num, None)
             if parent is None:
-                parent = self._get_single_transf_qt(parent)
+                parent = self._save_qt_to_dict(transfDict, parent_num)
 
-            parent_qt, parent_offset = parent
-            seg = self._segments.get(num)
-            seg_qt = seg.quaternion_state
-            offset = seg.offset
-            transf = parent_qt * seg_qt
+            seg = self[num]
+            par_qt, par_off = parent
+            qt_abs = par_qt * seg.orientation_state
 
-            abs_offset = point_fromB(quat.as_rotation_matrix(parent_qt), parent_offset, offset) 
+            par_transf = quat.as_rotation_matrix(par_qt)
+            abs_transf = quat.as_rotation_matrix(qt_abs)
 
-            pair = (transf, abs_offset)
+            abs_offset = point_fromB(par_transf, par_off, seg.offset)
 
+            pair = (qt_abs, abs_offset)
             transfDict.update({num: pair})
             return pair
 
         else:
             "Parent is None, so this is root!"
             seg = self._segments.get(num)
-            transf = seg.quaternion_state
+            qt = seg.orientation_state
             offset = seg.offset
-            pair = (transf, offset)
+            pair = (qt, offset)
             transfDict.update({num: pair})
             return pair
 
@@ -743,30 +770,12 @@ class Model3D:
 def create_robot():
     mod = Model3D()
 
-    val = mod.add_segment(name="anchor")
-    val = mod.add_segment(val, name="J1", rotation_axis = "-z",  offset=[0,0,0.345])
+    val = mod.add_segment(name="J1", rotation_axis = "-z",  offset=[0,0,0.345])
     val = mod.add_segment(val, name="J2", rotation_axis = "y",  offset=[0.02,0,0])
     val = mod.add_segment(val, name="J3", rotation_axis = "y",  offset=[0.26,0,0])
     val = mod.add_segment(val, name="J4", rotation_axis ="-x",  offset=[0,0,0.02])
     val = mod.add_segment(val, name="J5", rotation_axis = "y",  offset=[0.26,0,0])
     val = mod.add_segment(val, name="J6", rotation_axis= "-x",  offset=[0.075,0,0])
-
-    #mod.transf_quats[5]
-    #val = mod.add_segment(val, name="J1", axis="x", up="-z", offset=[0,0,0.345])
-    #"2"
-    #val = mod.add_segment(val, name="J2", axis="y", up="-x", offset=[0.02,0,0])
-#
-    #"3"
-    #val = mod.add_segment(val, name="J3", axis="-x", up='z', offset=[0.26,0,0])
-#
-    #"4"
-    #val = mod.add_segment(val, name="J4", axis="x", up="-y", offset=[0,-0.02,0])
-#
-    #"5"
-    #val = mod.add_segment(val, name="J5", axis="x", up="y", offset=[-0.26,0,0])
-#
-    #"6"
-    #val = mod.add_segment(val, name="J6", axis="x", up="-y", offset=[0,-0.075,0])
     return mod
 
 def animate(i):
@@ -805,24 +814,18 @@ def animate(i):
         #phase = 1
         robot[6].angle += step
 
-    #print(robot.joints)
-
-    #robot[1].angle = i/2
-    #robot[2].angle = i*2
-    ##step = abs(interval - (i%(interval)*2)) / interval * amplitude
-    #robot[3].angle += 3# i/10%4
-    #robot[4].angle += i/2%7
-    #robot[5].angle = i * 2
-    #robot[6].angle = i * 9
-
     ax.clear()
     trf = robot.transf_mats
-    robot.draw(ax, ax_size=0.04, textsize=12)
+    robot.draw(ax, ax_size=0.08, textsize=12)
     end_trf = robot.transf_mats[6]
     orien = end_trf[:3, :3]
     offset = end_trf[:3, -1]
-
     end_point = point_fromB(orien, offset=offset, point=[0,0,0])
+
+
+    #for t in trf.values():
+        #print(t)
+    #print(end_point)
     trail.append(end_point)
     pts = np.array(trail[-traillen:]).T
     cols = np.clip(np.absolute(pts).T*2+[0,0,-0.3], 0, 1)
@@ -840,7 +843,8 @@ if __name__ == "__main__":
     #robot[1].angle = -50
     #robot[2].angle=20
     fig = plt.figure(figsize=(10,7))
-    ax = plt.gca(projection="3d")
+    #ax = plt.gca(projection="3d")
+    ax = Axes3D(fig)
     trail = []
 
 

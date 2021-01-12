@@ -13,12 +13,12 @@ from pygame.locals import *
 import pygame
 
 
-def render_axis(render_abs_axis=True, perspective=False):
+def render_axis(render_abs_axis=True, render_corner=True, perspective=False, ax_size=1, ax_width=3):
     glMatrixMode(GL_MODELVIEW)
-    
+
     "Params"
-    glLineWidth(3.0)
-    ax_len = 1
+    glLineWidth(ax_width)
+    ax_len = ax_size
 
     if render_abs_axis:
         offset = 0,0,0
@@ -41,11 +41,15 @@ def render_axis(render_abs_axis=True, perspective=False):
 
     model = glGetDoublev(GL_MODELVIEW_MATRIX).T
     rot = model[:3, :3]
-    scrX = np.dot(rot, [1,0,0])
-    scrY = np.dot(rot, [0,1,0])
-    scrZ = np.dot(rot, [0,0,1])
+    scrX = np.dot(rot, [ax_len,0,0])
+    scrY = np.dot(rot, [0,ax_len,0])
+    scrZ = np.dot(rot, [0,0,ax_len])
 
-    if perspective:
+    glLineWidth(3.0)
+    ax_len = 1
+    if not render_corner:
+        pass
+    elif perspective:
         "Render small axis in corner"
         glDisable(GL_DEPTH_TEST)
         glMatrixMode(GL_MODELVIEW)
@@ -55,7 +59,7 @@ def render_axis(render_abs_axis=True, perspective=False):
         glLoadIdentity()
         glMatrixMode(GL_MODELVIEW)
         offset = 4, -2, -8
-        
+
         glBegin(GL_LINES)
         "X RED"
         glColor(0.7,0,0)
@@ -85,7 +89,7 @@ def render_axis(render_abs_axis=True, perspective=False):
         glLoadIdentity()
 
         offset = 4, -2,-2
-        
+
         glBegin(GL_LINES)
         "X RED"
         glColor(1,0,0)
@@ -110,7 +114,7 @@ def render_axis(render_abs_axis=True, perspective=False):
 
 def render_plane(verts):
     glMatrixMode(GL_MODELVIEW)
-    
+
     glLineWidth(1)
     glBegin(GL_LINES)
     glColor(0.8,0.8,0.8)
