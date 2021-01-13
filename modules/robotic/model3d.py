@@ -21,6 +21,7 @@ def point_fromA(orien, offset=None, point=None):
         offset = [0,0,0]
     assert len(point) >= 3, "Point has to have at least 3 coords"
     point = np.array(point) - offset
+    orien = orien.T
     return np.dot(orien, point)
 
 

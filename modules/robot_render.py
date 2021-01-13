@@ -48,8 +48,10 @@ def control(key):
     Matrix describes BA Transform
     M.T = AB+P
     model.T = T_VA
-    model.T = Transformv_Visual_Absolute
+    model.T = Transform_Visual_Absolute
     """
+    glMatrixMode(GL_MODELVIEW)
+
     rot = model[:3, :3]
     ang = 3
     step = 0.05
@@ -97,6 +99,9 @@ def control(key):
 
     if rotVec:
         glMatrixMode(GL_MODELVIEW)
+
+        rot = model[:3, :3]
+        pos = model[-1, :3].reshape(3)
         #q1 = get_quat(ang, rotVec)
         #rot = quaternion.as_rotation_matrix(q1)
         #rot_mat = np.eye(4, dtype=np.float)
@@ -104,13 +109,22 @@ def control(key):
         #pos = view_matrix[-1, :3]
         #offset = point_fromB(rot, [0,0,0], pos)
 
-        #glTranslate(*(-pos))
+        view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
+        #print()
+        #print(view_matrix)
+        #glTranslate(*(pos*0.9))
+        #view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
+        #print(view_matrix)
+
         #glMultMatrixf(rot_mat)
         glRotate(ang, *rotVec)
+        #new_pos = point_fromA(rot, [0,0,0], pos)
         #print(view_matrix)
-        #print(pos)
-        #glTranslate(*pos)
+        #off = (pos-new_pos)
+        #print(off)
+        #glTranslate(*new_pos)
 
+    #print(model)
     #view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
     #print(view_matrix)
 
@@ -171,13 +185,13 @@ def main():
     pts = 20
 
     MESH_COLORS = cycle([
-        (1,1,1),
-        (1,0.8,0.5),
-        (1,0.2,0.7),
-        (0.3,0.7,1),
-        (0.5,0.4,0.8),
-        (0.3,1,0.2),
-        (1,0,0.3),
+        (1,1,1), # root
+        (1,1,0.2),
+        (1,0,0.5),
+        (0,0.7,1),
+        (0,0.9,0.5),
+        (1,0.8,0.2),
+        (0.6,0,1),
     ])
     rob1 = create_robot()
     rob2  = create_robot()
@@ -205,14 +219,12 @@ def main():
 
 
     for stl_mesh, key in zip(meshes, range(0, 7)):
+        "Define lists"
         color = next(MESH_COLORS)
-        glColor(color)
         if stl_mesh:
             vect = stl_mesh.vectors
             glLineWidth(1)
             glPushMatrix()
-            #glTranslate(*abs_offset)
-            #glRotate(*Qvec)
 
             glNewList(key, GL_COMPILE)
             glBegin(GL_LINES)
@@ -228,7 +240,9 @@ def main():
     i = 0
     end_it = False
     pause = False
-    trail = deque(maxlen=100)
+    trail_cols = np.linspace((0.5, 0.2, 0), (0, 1, 0), 300)
+    trail = deque(maxlen=300)
+    dist_list = []
     while True and not end_it:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -253,7 +267,6 @@ def main():
 
         for key in keyCache.keys():
             control(key)
-
 
         if pause == True:
             pygame.time.wait(10)
@@ -285,13 +298,13 @@ def main():
                 rob1[6].angle += step
                 rob2[6].angle += step
 
-            rob1[1].angle = (time.time()*45)%360
+            rob1[1].angle = (time.time()*15)%360
             #robot[1].angle = 0
-            rob1[2].angle = math.sin(time.time()/2)*40-90
+            rob1[2].angle = math.sin(time.time()/2)*80-90
             #robot[2].angle = -90
             rob1[3].angle = math.sin(time.time())*60
-            rob1[4].angle = math.sin(time.time()/3)*30-40
-            rob1[5].angle = math.sin(time.time()*3)*60
+            rob1[4].angle = math.sin(time.time())*50-40
+            rob1[5].angle = math.sin(time.time()/5)*60
             rob1[6].angle = (time.time()*50)%360
             rob1.calculate_transformations()
 
@@ -305,13 +318,9 @@ def main():
         #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
-        #robot.calculate_transformations()
-        model = glGetFloatv(GL_MODELVIEW_MATRIX)
-        #print()
-        #print(model)
-        #rob1[1].add_rotation(5, [0,0,1])
+        POINT = (0.5, 0.8, 0.7)
 
-        for rb in [rob1, rob2]:
+        for rb_num, rb in enumerate([rob1, rob2]):
             prev = [0,0,0]
             transf_mats = rb.transf_mats
             transf_quats = rb.transf_quats
@@ -339,32 +348,67 @@ def main():
                 if stl_mesh:
                     glLineWidth(1)
                     glCallList(key)
-
-                render_axis(ax_size=0.1, ax_width=5, render_corner=False)
+                if rb_num == 1 or rb_num == 0 and key == 6:
+                    render_axis(ax_size=0.1, ax_width=5, render_corner=False)
             glPopMatrix()
 
             glPushMatrix()
             glDisable(GL_DEPTH_TEST)
 
-            #for stl_mesh, key in zip(meshes, range(0, 7)):
-                #color = next(MESH_COLORS)
-                #glColor(color)
-                #transf = transf_mats[key]
-                #rot_mat = transf[:3, :3]
-                #offset = transf[:3, -1]
-                ##skelet = point_fromA(rot_mat, [0,0,0], offset)
-                #skelet = offset
-                ##skelet = np.dot(transf_mats[key], [0,0,0,1])[:3]
-                ##print(skelet, offset)
-#
-                #glLineWidth(15)
-                #glBegin(GL_LINES)
-                #glVertex3fv(prev)
-                #glVertex3fv(skelet)
-                #glEnd()
-                #prev = skelet
+            for stl_mesh, key in zip(meshes, range(0, 7)):
+                color = next(MESH_COLORS)
+                glColor(color)
+                transf = transf_mats[key]
+                rot_mat = transf[:3, :3]
+                offset = transf[:3, -1]
+                skelet = offset
+
+                glLineWidth(15)
+                glBegin(GL_LINES)
+                glVertex3fv(prev)
+                glVertex3fv(skelet)
+                glEnd()
+                prev = skelet
 
             glPopMatrix()
+
+        hi_dist = math.inf
+        closest = None
+        x = time.time()/4
+        #POINT = (math.cos(x/2)*2.7, math.sin(x), 0.8)
+        glColor(1,1,1)
+        for seg_num in range(7):
+            col = next(MESH_COLORS)
+            if seg_num == 0:
+                continue
+            transf = rob2.transf_mats[seg_num]
+            rot = transf[:3, :3]
+            pos = transf[:3, -1]
+
+            #closest = point_fromB(rot, transf[:3,-1], [.1,.1,0])
+            query = point_fromA(rot, pos, POINT)
+            seg = rob2[seg_num]
+            msh = meshes[seg_num]
+            pts = msh.vectors.reshape((-1, 3))
+            dists = (pts - query)**2
+            dists = dists.sum(axis=-1)
+            low_dist = dists.min()
+            if low_dist < hi_dist:
+                hi_dist = low_dist
+                closest = pts[np.where(dists==low_dist)][0]
+                closest = point_fromB(rot, pos, closest)
+                glColor(*col)
+
+
+        if closest is not None:
+            dist_list.append(hi_dist)
+            glLineWidth(4)
+            glBegin(GL_LINES)
+            glVertex3fv(POINT)
+            glColor(1,1,1)
+            glVertex3fv(closest)
+            glEnd()
+
 
 
         #glColor(next(MESH_COLORS))
@@ -408,7 +452,6 @@ def main():
         transf_mats = rob1.transf_mats
         last = transf_mats[6][:3, -1]
         trail.append(last)
-        trail_cols = np.linspace((0.2, 0.2, 0), (0, 1, 0), len(trail))
         glPointSize(4)
 
         for pt, col in zip(trail, trail_cols):
@@ -421,6 +464,12 @@ def main():
         pygame.time.wait(10)
 
     pygame.quit()
+
+    plt.figure()
+    plt.title("Distance of point to robot")
+    plt.plot(dist_list)
+    plt.grid()
+    plt.show()
 
 
 def load_meshes():
