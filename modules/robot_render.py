@@ -194,6 +194,8 @@ def main():
         (0.6,0,1),
     ])
     rob1 = create_robot()
+    rob1[0].offset = [0, -1, 0]
+
     rob2  = create_robot()
     rob2[0].offset = [0, 1, 0]
 
@@ -236,8 +238,6 @@ def main():
             glEndList()
             glPopMatrix()
 
-    plt.figure()
-    plt.show(block=False)
 
     phase = 0
     i = 0
@@ -260,7 +260,6 @@ def main():
                 else:
                     keyCache[event.key] = True
                     #print(event.key)
-
 
             if event.type == pygame.KEYUP:
                 try:
@@ -321,10 +320,9 @@ def main():
         #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
-        POINT = (0.5, 0.8, 0.7)
+        POINT = (0.7, 0.6, 1)
 
         for rb_num, rb in enumerate([rob1, rob2]):
-            prev = [0,0,0]
             transf_mats = rb.transf_mats
             transf_quats = rb.transf_quats
 
@@ -332,7 +330,6 @@ def main():
             for stl_mesh, key in zip(meshes, range(0, 7)):
                 "Robot Segment"
                 segment = rb[key]
-                #print(segment.offset)
 
                 glEnable(GL_DEPTH_TEST)
                 color = next(MESH_COLORS)
@@ -351,18 +348,21 @@ def main():
                 if stl_mesh:
                     glLineWidth(1)
                     glCallList(key)
-                if rb_num == 1 or rb_num == 0 and key == 6:
+
+                if rb_num == 1 or rb_num == 0 and key == 6 or key == 0:
                     render_axis(ax_size=0.1, ax_width=5, render_corner=False)
+
             glPopMatrix()
 
             glPushMatrix()
             glDisable(GL_DEPTH_TEST)
 
+            prev = rb[0].offset
             for stl_mesh, key in zip(meshes, range(0, 7)):
                 color = next(MESH_COLORS)
                 glColor(color)
                 transf = transf_mats[key]
-                rot_mat = transf[:3, :3]
+                #rot_mat = transf[:3, :3]
                 offset = transf[:3, -1]
                 skelet = offset
 
@@ -403,55 +403,18 @@ def main():
                 glColor(*col)
 
 
+        glEnable(GL_DEPTH_TEST)
+
         if closest is not None:
             dist_list.append(hi_dist)
-            glLineWidth(4)
+            glLineWidth(8)
             glBegin(GL_LINES)
             glVertex3fv(POINT)
             glColor(1,1,1)
             glVertex3fv(closest)
             glEnd()
 
-
-
-        #glColor(next(MESH_COLORS))
-        #for ind, part in enumerate(PARTS, 1):
-            #glPushMatrix()
-            #glPointSize(15)
-            #glTranslate(0, ind/2 + 3, 0)
-#
-            #glPushMatrix()
-            #part[1].angle = time.time()*35%360
-            #part.calculate_transformations()
-            #transf_mats = part.transf_mats
-#
-            #QT = part[1].orientation_state
-            #Qvec = math.degrees(QT.angle()), QT.x, QT.y, QT.z
-            #render_axis(render_corner=False, ax_size=0.2)
-            #glTranslate(*part[1].offset)
-            #glRotate(*Qvec)
-            #glColor(next(MESH_COLORS))
-            #glLineWidth(0.1)
-#
-            #glCallList(ind)
-            #glColor(255,255,255)
-            #glBegin(GL_POINTS)
-            ##glVertex3f(*part[0].offset)
-            #glVertex3f(0,0,0)
-            #glEnd()
-            #render_axis(render_corner=False, ax_size=0.1)
-            #glPopMatrix()
-#
-            #trf = transf_mats[1]
-            #point = trf[:3, -1]
-            #glColor(255,0,0)
-            #glPointSize(10)
-            #glBegin(GL_POINTS)
-            #glVertex3f(*point)
-            #glEnd()
-#
-            #glPopMatrix()
-
+        "Render Trail of robot1"
         transf_mats = rob1.transf_mats
         last = transf_mats[6][:3, -1]
         trail.append(last)
