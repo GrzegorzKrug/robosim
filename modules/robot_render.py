@@ -236,6 +236,9 @@ def main():
             glEndList()
             glPopMatrix()
 
+    plt.figure()
+    plt.show(block=False)
+
     phase = 0
     i = 0
     end_it = False

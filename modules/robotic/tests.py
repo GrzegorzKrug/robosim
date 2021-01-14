@@ -1,8 +1,9 @@
 from invertkin import PlainModel
-from model3d import RelativeCoordinate
+from model3d import RelativeCoordinate, Segment, Model3D, get_quat
 
 import pytest
 import numpy as np
+import quaternion
 import math
 
 
@@ -848,6 +849,228 @@ def test64_():
     print(solution)
     assert np.absolute(res - solution).sum() < maxError, "Error is too big"
 
-def test65_():
+def test65_check_model_calculations_null():
+    maxError = 1e-6
+    model = Model3D()
+    pid = model.add_segment(0, offset=[0,0,1])
+    pid = model.add_segment(1, offset=[1,0,3])
+    pid = model.add_segment(0, offset=[0,1,9])
+    pid = model.add_segment(2, offset=[0,1,0])
+
+    transf_mats = model.transf_mats
+
+    pt0 = [0, 0, 1]
+    pt1 = [1, 0, 4]
+    pt2 = [0, 1, 9]
+    pt3 = [1, 1, 4]
+
+    arr = np.eye(4)
+
+    arr[:3, -1] = pt0
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt1
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt2
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    transf[:3, -1] = pt3
+    err = transf - transf_mats[4]
+    err = np.absolute(err).sum()
+    assert err < maxError, "Error to big!"
+
+def test66_check_model_calculations_rotation():
+    maxError = 1e-6
+    model = Model3D()
+    pid = model.add_segment(0, offset=[0,0,1], rotation_axis="z")
+    pid = model.add_segment(1, offset=[1,0,0], rotation_axis="x")
+    pid = model.add_segment(2, offset=[0,1,0], rotation_axis="y")
+
+    transf_mats = model.transf_mats
+
+    pt0 = [0, 0, 1]
+    pt1 = [1, 0, 1]
+    pt2 = [1, 1, 1]
+
+    arr = np.eye(4)
+
+    arr[:3, -1] = pt0
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt1
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt2
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+def test67_check_model_calculations_all_transf():
+    maxError = 1e-6
+    model = Model3D()
+    pid = model.add_segment(0, offset=[0,0,1], rotation_axis="z", angle=90)
+    pid = model.add_segment(1, offset=[1,0,0])
+    pid = model.add_segment(2, offset=[0,1,0])
+
+    transf_mats = model.transf_mats
+
+    pt0 = [0, 0, 1]
+    pt1 = [0, 1, 1]
+    pt2 = [-1, 1, 1]
+
+    arr = np.eye(4)
+    rot_mat = quaternion.as_rotation_matrix(get_quat(90, [0,0,1]))
+
+    arr[:3, :3] = rot_mat
+
+    arr[:3, -1] = pt0
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt1
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt2
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+def test68_():
+    maxError = 1e-7
+    model = Model3D()
+
+    pid = model.add_segment(0, offset=[0,0,1], rotation_axis="-z", angle=90)
+    pid = model.add_segment(1, offset=[1,0,0])
+    pid = model.add_segment(2, offset=[0,1,0])
+
+    transf_mats = model.transf_mats
+
+    pt0 = [0, 0, 1]
+    pt1 = [0, -1, 1]
+    pt2 = [1, -1, 1]
+
+    arr = np.eye(4)
+    q1 = get_quat(90, [0,0,-1])
+    rot = quaternion.as_rotation_matrix(q1)
+    arr[:3, :3] = rot
+
+    arr[:3, -1] = pt0
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt1
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, -1] = pt2
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+def test69_stacked_joints():
+    maxError = 1e-6
+    model = Model3D()
+
+    #root= model.add_segment()
+    pid = model.add_segment(0, offset=[0,0,1], rotation_axis="z", angle=90)
+    pid = model.add_segment(1, offset=[1,0,0], rotation_axis="z", angle=90)
+    pid = model.add_segment(2, offset=[1,0,0])#, rotation_axis="z", angle=90)
+    pid = model.add_segment(3, offset=[1,0,0], rotation_axis="z", angle=90)
+    model.calculate_transformations()
+    transf_mats = model.transf_mats
+
+    q1 = get_quat(90, [0,0,1])
+    q2 = get_quat(180, [0,0,1])
+    q4 = get_quat(90*3, [0,0,1])
+
+    arr = np.eye(4)
+    rot1 = quaternion.as_rotation_matrix(q1)
+    rot2 = quaternion.as_rotation_matrix(q2)
+    rot3 = quaternion.as_rotation_matrix(q2)
+    rot4 = quaternion.as_rotation_matrix(q4)
+
+    arr[:3, :3] = rot1
+    arr[:3, -1] = [0,0,1]
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot2
+    arr[:3, -1] = [0,1,1]
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot3
+    arr[:3, -1] = [-1,1,1]
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot4
+    arr[:3, -1] = [-2,1,1]
+    transf = transf_mats[4]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+def test70_():
+    maxError = 1e-6
+    model = Model3D()
+
+    pid = model.add_segment(0, offset=[0,0,1], rotation_axis="x", angle=90)
+    pid = model.add_segment(1, offset=[1,0,0], rotation_axis="x", angle=90)
+    pid = model.add_segment(2, offset=[0,0,1], rotation_axis="x", angle=90)
+    model.calculate_transformations()
+    transf_mats = model.transf_mats
+
+    q1 = get_quat(90, [1,0,0])
+    q2 = get_quat(90, [1,0,0])
+    q3 = get_quat(90*3, [1,0,0])
+
+    arr = np.eye(4)
+    rot1 = quaternion.as_rotation_matrix(q1)
+    rot2 = quaternion.as_rotation_matrix(q1*q2)
+    rot3 = quaternion.as_rotation_matrix(q3)
+
+    transf = transf_mats[0]
+    err = arr - transf
+    err = err.sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot1
+    arr[:3, -1] = [0,0,1]
+    transf = transf_mats[1]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot2
+    arr[:3, -1] = [1,0,1]
+    transf = transf_mats[2]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+    arr[:3, :3] = rot3
+    arr[:3, -1] = [1,0,0]
+    transf = transf_mats[3]
+    err = np.absolute(arr - transf).sum()
+    assert err < maxError, f"Error too big, \n{transf}, \nexpected: \n{arr}"
+
+def test71_():
     pass
 
