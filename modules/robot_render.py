@@ -16,7 +16,7 @@ from stl import mesh
 
 from utils.models import Cube, Tube
 from utils.utils import render_axis, render_plane
-from robotic.model3d import point_fromB, point_fromA, get_quat
+from robotic.model3d import point_fromB, point_fromA, get_quat, get_quat_normalised
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -53,80 +53,79 @@ def control(key):
     glMatrixMode(GL_MODELVIEW)
 
     rot = model[:3, :3]
+    global camera_state
+    global camera_initial_state
+    qcam_ini, pos_ini = camera_initial_state
+    qcam, pos = camera_state
     ang = 3
     step = 0.05
+
     if key == pygame.K_UP:
         pt = np.dot(rot, (0,0,step))
         pt[1] = pt[1] / (1-pt[2])
         pt[2] = 0
-        glTranslate(*pt)
+        #glTranslate(*pt)
+        pos += pt
     elif key == pygame.K_DOWN:
         pt = np.dot(rot, (0,0,-step))
         pt[1] = pt[1] / (1-pt[2])
         pt[2] = 0
-        glTranslate(*pt)
+        #glTranslate(*pt)
+        pos += pt
     elif key == pygame.K_LEFT:
         pt = np.dot(rot, (step,0,0))
         pt[0] = pt[0] / (1-pt[2])
         pt[2] = 0
-        glTranslate(*pt)
+        #glTranslate(*pt)
+        pos += pt
     elif key == pygame.K_RIGHT:
         pt = np.dot(rot, (-step,0,0))
         pt[0] = pt[0] / (1-pt[2])
         pt[2] = 0
-        glTranslate(*pt)
+        #glTranslate(*pt)
+        pos += pt
     elif key == pygame.K_KP_PLUS:
-        glTranslate(0, 0, step)
+        #glTranslate(0, 0, step)
+        pos += np.array([0,0,step])
     elif key == pygame.K_KP_MINUS:
-        glTranslate(0, 0,-step)
+        #glTranslate(0, 0,-step)
+        pos += np.array([0,0,-step])
+    else:
+        pass
+        #pt = 0,0,0
 
     rotVec = None
     if key == pygame.K_KP8:
-        rotVec = 0, -1, 0
-    elif key == pygame.K_KP2:
-        rotVec = 0, 1, 0
-    elif key == pygame.K_KP4:
-        rotVec = 0, 0, 1
-    elif key == pygame.K_KP5:
-        glPopMatrix()
-        glPushMatrix()
-    elif key == pygame.K_KP6:
-        rotVec = 0, 0, -1
-    elif key == pygame.K_KP7:
         rotVec = -1, 0, 0
-    elif key == pygame.K_KP9:
+        q1 = get_quat(ang, rotVec)
+        qcam = q1 * qcam
+    elif key == pygame.K_KP2:
         rotVec = 1, 0, 0
+        q1 = get_quat(ang, rotVec)
+        qcam = q1 * qcam
+    elif key == pygame.K_KP4:
+        rotVec = 0, 0, -1
+        q1 = get_quat(ang, rotVec)
+        qcam = qcam * q1
+    elif key == pygame.K_KP6:
+        rotVec = 0, 0, 1
+        q1 = get_quat(ang, rotVec)
+        qcam = qcam * q1
+    elif key == pygame.K_KP7:
+        rotVec = 0, 0, -1
+        q1 = get_quat(ang, rotVec)
+        qcam = q1 * qcam
+    elif key == pygame.K_KP9:
+        rotVec = 0, 0, 1
+        q1 = get_quat(ang, rotVec)
+        qcam = q1 * qcam
+    elif key == pygame.K_KP5:
+        camera_state = camera_initial_state
+        return None
 
-    if rotVec:
-        glMatrixMode(GL_MODELVIEW)
+    camera_state = (qcam, pos)
+    return True
 
-        rot = model[:3, :3]
-        pos = model[-1, :3].reshape(3)
-        #q1 = get_quat(ang, rotVec)
-        #rot = quaternion.as_rotation_matrix(q1)
-        #rot_mat = np.eye(4, dtype=np.float)
-        #rot_mat[:3, :3] = rot
-        #pos = view_matrix[-1, :3]
-        #offset = point_fromB(rot, [0,0,0], pos)
-
-        view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
-        #print()
-        #print(view_matrix)
-        #glTranslate(*(pos*0.9))
-        #view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
-        #print(view_matrix)
-
-        #glMultMatrixf(rot_mat)
-        glRotate(ang, *rotVec)
-        #new_pos = point_fromA(rot, [0,0,0], pos)
-        #print(view_matrix)
-        #off = (pos-new_pos)
-        #print(off)
-        #glTranslate(*new_pos)
-
-    #print(model)
-    #view_matrix = glGetFloat(GL_MODELVIEW_MATRIX)
-    #print(view_matrix)
 
 def main():
     keyCache = dict()
@@ -173,16 +172,43 @@ def main():
 
     meshes = [None, stl1_vis, stl2_vis, stl3_vis, stl4_vis, stl5_vis, stl6_vis]
 
-    glRotate(-90, 1, 0, 0)
-    glRotate(90, 0, 0, 1)
-    glTranslate(0.8, -0.35, -0.2)
-    glRotate(20, 0, -1, 0)
-    glRotate(35, 0, 0, 1)
-    glTranslate(1, -1,-0.71)
+    #glRotate(-90, 1, 0, 0)
+    #glRotate(90, 0, 0, 1)
+    #glTranslate(0.8, -0.35, -0.2)
+    #glRotate(20, 0, -1, 0)
+    #glRotate(35, 0, 0, 1)
+    #glTranslate(1, -1,-0.71)
     glPushMatrix()
+    q1 = get_quat_normalised(90, [0, 1, 0])
+    q2 = get_quat_normalised(90, [0, 0, 1])
+    q3 = get_quat_normalised(20, [1, 0, 0])
+
+    qcam = q3 * q2 * q1
+    global camera_state, camera_initial_state
+    camera_initial_state = (qcam, [3, 0, -1])
+    camera_state = camera_initial_state
 
     N = 20
     pts = 20
+
+    line_shader = """
+    #version 330
+    in vec4 position;
+    void main()
+    {
+        gl_Position = position;
+    }
+    """
+
+    fragment_shader = """
+    #version 330
+
+    void main()
+    {
+        gl_FragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    """
 
     MESH_COLORS = cycle([
         (1,1,1), # root
@@ -229,11 +255,11 @@ def main():
             glPushMatrix()
 
             glNewList(key, GL_COMPILE)
-            glBegin(GL_LINES)
+            glBegin(GL_TRIANGLES)
             for vex in vect:
                 for pt in vex:
                     glVertex3f(*pt)
-                glVertex3f(*vex[0])
+                #glVertex3f(*vex[0])
             glEnd()
             glEndList()
             glPopMatrix()
@@ -243,8 +269,8 @@ def main():
     i = 0
     end_it = False
     pause = False
-    trail_cols = np.linspace((0.5, 0.2, 0), (0, 1, 0), 300)
-    trail = deque(maxlen=300)
+    trail_cols = np.linspace((0.5, 0.2, 0), (0, 1, 0), 100)
+    trail = deque(maxlen=100)
     dist_list = []
     while True and not end_it:
         for event in pygame.event.get():
@@ -273,9 +299,9 @@ def main():
         if pause == True:
             pygame.time.wait(10)
         else:
-            dur = 220
-            step = -(360) / dur
-            #traillen = 2 * cycle
+            dur = 100
+            rand = np.random.randint(0,90)
+            step = (360) / dur #*3.2
             i += 1
 
             if not ((i+1) % dur):
@@ -300,7 +326,7 @@ def main():
                 rob1[6].angle += step
                 rob2[6].angle += step
 
-            rob1[1].angle = (time.time()*15)%360
+            rob1[1].angle = (time.time()*125)%360
             #robot[1].angle = 0
             rob1[2].angle = math.sin(time.time()/2)*80-90
             #robot[2].angle = -90
@@ -311,12 +337,24 @@ def main():
             rob1.calculate_transformations()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        q1, off = camera_state
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(45, (display[0]/display[1]), 0.1, 500.0)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        rad, *vec = q1.angle(), q1.x, q1.y, q1.z
+        ang = math.degrees(rad)
+        #print(ang, vec)
+        glRotatef(ang, *vec)
+        glTranslate(*off)
+
         render_plane(plane)
         #render_axis()
 
         #print(" ".join(f"{ang%360:>5.1f}" for ang in rob1.joints))
 
-        glMatrixMode(GL_MODELVIEW)
         #glRotate(0.1, 0,0,1)
 
         "Draw robot skeleton"
@@ -360,14 +398,20 @@ def main():
             prev = rb[0].offset
             for stl_mesh, key in zip(meshes, range(0, 7)):
                 color = next(MESH_COLORS)
-                glColor(color)
                 transf = transf_mats[key]
-                #rot_mat = transf[:3, :3]
                 offset = transf[:3, -1]
                 skelet = offset
 
-                glLineWidth(15)
+                glLineWidth(6)
                 glBegin(GL_LINES)
+                glColor(0,0,0)
+                glVertex3fv(prev)
+                glVertex3fv(skelet)
+                glEnd()
+
+                glLineWidth(4)
+                glBegin(GL_LINES)
+                glColor(color)
                 glVertex3fv(prev)
                 glVertex3fv(skelet)
                 glEnd()
@@ -377,14 +421,14 @@ def main():
 
         hi_dist = math.inf
         closest = None
-        x = time.time()/4
-        #POINT = (math.cos(x/2)*2.7, math.sin(x), 0.8)
+        x = time.time()/10
+        POINT = (math.cos(x)*2+1, math.sin(x/3)*2-1, 1.4)
         glColor(1,1,1)
         for seg_num in range(7):
             col = next(MESH_COLORS)
             if seg_num == 0:
                 continue
-            transf = rob2.transf_mats[seg_num]
+            transf = rob1.transf_mats[seg_num]
             rot = transf[:3, :3]
             pos = transf[:3, -1]
 
@@ -413,15 +457,20 @@ def main():
             glColor(1,1,1)
             glVertex3fv(closest)
             glEnd()
+            glPushMatrix()
+            glTranslate(*POINT)
+            render_axis(render_corner=False, ax_size=0.1)
+            glPopMatrix()
 
         "Render Trail of robot1"
         transf_mats = rob1.transf_mats
         last = transf_mats[6][:3, -1]
         trail.append(last)
-        glPointSize(4)
+        #glPointSize(4)
 
-        for pt, col in zip(trail, trail_cols):
+        for num, (pt, col) in enumerate(zip(trail, trail_cols), 1):
             glColor(*col)
+            glPointSize(math.sqrt(num))
             glBegin(GL_POINTS)
             glVertex3f(*pt)
             glEnd()

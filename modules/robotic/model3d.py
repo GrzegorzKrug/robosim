@@ -1,3 +1,4 @@
+from collections import deque
 from quaternion import quaternion
 from functools import wraps
 from copy import copy, deepcopy
@@ -11,6 +12,36 @@ import numpy as np
 import math
 import time
 import os
+
+
+def timeit(smooth=100):
+    timeCache = dict()
+    def decorator(fun):
+        def wrapper(*args, **kwargs):
+            times = []
+            name = fun.__qualname__
+
+            time0 = time.time()
+            out = fun(*args, **kwargs)
+            end_time = time.time()
+            dur = end_time - time0
+
+            cache = timeCache.get(name)
+            if cache:
+                cache.append(dur)
+                mean_time = np.mean(cache)
+            else:
+                cache = deque(maxlen=smooth)
+                cache.append(dur)
+                mean_time = dur
+
+            timeCache[name] = cache
+
+            print(f'Mean duration {name:>15} is {mean_time*1000:>10.4f} ms')
+            return out
+
+        return wrapper
+    return decorator
 
 
 def point_fromA(orien, offset=None, point=None):
@@ -699,6 +730,7 @@ class Model3D:
                     fontdict={"size": textsize, "weight": weight}
                     )
 
+    #@timeit(1000)
     def calculate_transformations(self, inquaternions=True):
         "Calculatre transformations to current state"
         if self._transf_need_up:

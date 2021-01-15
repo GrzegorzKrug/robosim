@@ -125,3 +125,32 @@ def render_plane(verts):
 
     glEnd()
     #glPopMatrix()
+
+def timeit(smooth=100):
+    timeCache = dict()
+    def decorator(fun):
+        def wrapper(*args, **kwargs):
+            times = []
+            name = fun.__qualname__
+            time0 = time.time()
+            out = fun(*args, **kwargs)
+
+            end_time = time.time()
+            dur = end_time - time0
+            cache = timeCache.get(name)
+            if cache:
+                cache.append(dur)
+                mean_time = np.mean(cache)
+            else:
+                cache = deque(maxlen=smooth)
+                cache.append(dur)
+                mean_time = dur
+
+            timeCache[name] = cache
+
+            print('Mean duration {name:>15} is {mean_time*1000:>10.4f} ms')
+            return out
+
+        return wrapper
+    return decorator
+
