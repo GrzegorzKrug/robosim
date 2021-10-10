@@ -135,16 +135,18 @@ def val_matrix_to_color_matrix(arr):
 
 
 def pendulum_gradient(
-        plot_range=5, N=50, rope=3, step_size=0.001, friction=0.001
+        plot_range=5, N=50, rope=3, step_size=0.001, friction=0.001,
+        amp=8,
     ):
     """
     Drawing pendulum gradient
     """
     T = plot_range
-    vec = (np.arange(N) - N / 2) / N * T * 2
+    #vec = (np.arange(N) - N / 2) / N * T * 2
+    vec = np.linspace(-amp, amp, N)
     vec_x = vec
     vec_y = vec
-    X, Y = np.meshgrid(vec_x, -vec_y)
+    X, Y = np.meshgrid(vec_x, vec_y)
     arr = np.stack([X, Y], axis=-1)
 
     fig = plt.figure(figsize=(16, 9))
@@ -203,7 +205,8 @@ def pendulum_gradient(
 
     plt.legend()
     plt.colorbar()
-    plt.axis([-plot_range, plot_range, -plot_range, plot_range])
+    #plt.axis([-plot_range, plot_range, -plot_range, plot_range])
+    plt.axis([-amp, amp, -amp, amp])
     plt.subplots_adjust(bottom=0.1, top=0.85, left=0.1, right=0.9)
     #ax.set_facecolor(color=(1,0,0))
 
@@ -300,12 +303,12 @@ def run_simulation_pendulum(
         c = np.random.random(3)
         c[1] = c[1] * 0.4 + 0.5  # Color change
         gradient_ax.plot(model.data['theta'], omg, label=name,
-        color=c, linewidth=0.4)
+        color=c, linewidth=2)
 
         gradient_ax.legend(loc=1)
 
 
-friction = 0.002
+friction = 0.04
 step_size = 0.01
 SHOW = False
 RENDER = False
@@ -315,27 +318,27 @@ PLOT = False
 initial_theta = math.radians(179 + 180)
 initial_omega = -7.2 + 0.4
 time_range = 5_000
-ax = pendulum_gradient(N=25, plot_range=10, friction=friction, step_size=step_size)
+ax = pendulum_gradient(N=50, plot_range=10, friction=friction, step_size=step_size)
 
 #run_simulation_pendulum(f"Pendulum, {step_size}", ax, friction=friction,
                         #time_range=time_range, step_size=step_size,
                         #initial_theta=initial_theta,
                         #initial_omega=initial_omega)
-#run_simulation_pendulum(f"Pendulum2 {step_size * 10}", ax, friction=friction,
-                        #time_range=time_range // 10, step_size=step_size * 10,
-                        #initial_theta=initial_theta,
-                        #initial_omega=initial_omega)
-#
-#run_simulation_pendulum(f"Pendulum3 {step_size / 10}", ax, friction=friction,
-                        #time_range=time_range * 10, step_size=step_size / 10,
-                        #initial_theta=initial_theta,
-                        #initial_omega=initial_omega)
+run_simulation_pendulum(f"Pendulum 2 ", ax, friction=friction,
+                        time_range=time_range * 10, step_size=step_size,
+                        initial_theta=3.14,
+                        initial_omega=2)
 
-run_simulation_pendulum(f"Pendulum 4 {step_size}", ax,
+run_simulation_pendulum(f"Pendulum 3 ", ax, friction=friction,
+                        time_range=time_range * 10, step_size=step_size,
+                        initial_theta=3.1,
+                        initial_omega=-1)
+
+run_simulation_pendulum(f"Pendulum 4 ", ax,
                         friction=friction, time_range=time_range,
                         step_size=step_size,
-                        initial_theta=np.deg2rad(90),
-                        initial_omega=0)
+                        initial_theta=np.deg2rad(-30),
+                        initial_omega=6)
 
 fig = ax.figure
 fig.savefig("pendulum.jpg")
