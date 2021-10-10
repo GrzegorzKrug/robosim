@@ -64,9 +64,10 @@ class SinglePendulum:
         theta_old = self.theta
         omega_old = self.omega
 
-        accel = -GRAV * math.sin(theta_old) / self.rope
-        omega = omega_old * (1 - self.friction * step_size) + accel * step_size
-        theta = theta_old + omega * step_size
+        theta, omega = self.pendulum_step(
+                self.theta, self.omega, step_size, friction, self.rope, 0
+        )
+
 
         self.omega = omega
         self.theta = theta
@@ -107,6 +108,22 @@ class SinglePendulum:
 
         return x, y
 
+    @staticmethod
+    def pendulum_step(
+            theta_old, omega_old, step_size, friction, rope, steer_f
+            ):
+        accel = -GRAV * math.sin(theta_old) / rope
+        #steer = np.clip(3.13 - theta_old, -1, 1)
+        #steer = np.tanh(steer*3)
+        #steer = steer * step_size * 1000
+        #steer = 0
+
+        omega = omega_old
+        chg = accel * step_size + steer_f * step_size
+        omega += chg
+        omega = (1-friction) * omega
+        theta = theta_old + omega * step_size
+        return theta, omega
 
 def val_matrix_to_color_matrix(arr):
     arr = arr[:, :, np.newaxis]
@@ -117,7 +134,12 @@ def val_matrix_to_color_matrix(arr):
     return color
 
 
-def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.001):
+def pendulum_gradient(
+        plot_range=5, N=50, rope=3, step_size=0.001, friction=0.001
+    ):
+    """
+    Drawing pendulum gradient
+    """
     T = plot_range
     vec = (np.arange(N) - N / 2) / N * T * 2
     vec_x = vec
@@ -130,13 +152,17 @@ def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.00
     U = np.zeros((N, N))
     V = np.zeros((N, N))
     C = np.zeros((N, N))
+
     for row_ind, row in enumerate(arr):
         for col_ind, (prev_th, prev_om) in enumerate(row):
-            omega = (
-                    prev_om * (1 - friction * step_size)
-                    - GRAV / rope * math.sin(prev_th) * step_size
+            #omega = (
+                    #prev_om * (1 - friction * step_size)
+                    #- GRAV / rope * math.sin(prev_th) * step_size
+            #)
+            #theta = prev_th + prev_om * step_size
+            theta, omega = SinglePendulum.pendulum_step(
+                    prev_th, prev_om, step_size, friction, rope, 0
             )
-            theta = prev_th + prev_om * step_size
 
             om_change = (omega - prev_om)
             th_change = prev_om * step_size
@@ -178,7 +204,8 @@ def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.00
     plt.legend()
     plt.colorbar()
     plt.axis([-plot_range, plot_range, -plot_range, plot_range])
-    # plt.axis('equal')
+    plt.subplots_adjust(bottom=0.1, top=0.85, left=0.1, right=0.9)
+    #ax.set_facecolor(color=(1,0,0))
 
     return ax
 
@@ -186,12 +213,18 @@ def pendulum_gradient(plot_range=5, N=45, rope=3, step_size=0.001, friction=0.00
 "Model Creation"
 
 
-def run_simulation_pendulum(name=None, gradient_ax=None, friction=0.0, time_range=1000, step_size=0.01,
-                            initial_theta=0.0, initial_omega=0.0):
+def run_simulation_pendulum(
+        name=None, gradient_ax=None,
+        friction=0.0, time_range=1000, step_size=0.01,
+        initial_theta=0.0, initial_omega=0.0):
+    """
+    Simulates pendulum and shows it on screen.
+    """
+
     center = (0, 0)
-    model = SinglePendulum(*center, mass=1, rope=3, initial_theta=initial_theta, initial_omega=initial_omega,
-                           step_size=step_size,
-                           friction=friction)
+    model = SinglePendulum(*center, mass=1, rope=3,
+        initial_theta=initial_theta, initial_omega=initial_omega,
+        step_size=step_size, friction=friction)
     all_trace = []
     offset_x = 300
     offset_y = 300
@@ -200,7 +233,9 @@ def run_simulation_pendulum(name=None, gradient_ax=None, friction=0.0, time_rang
         model.step()
         x, y = model.data['x'][-1], model.data['y'][-1]
         all_trace.append((x, y))
+
         if RENDER or SHOW:
+            "Render Stuff"
             array = np.zeros((600, 600, 3), dtype=np.uint8) + 170
             poly = np.array(all_trace[-30:])
             poly[:, 1] *= -1
@@ -238,7 +273,9 @@ def run_simulation_pendulum(name=None, gradient_ax=None, friction=0.0, time_rang
         ax1 = plt.axes([0.1, 0.05, 0.8, 0.6])
         ax2 = plt.axes([0.1, 0.7, 0.8, 0.2])
 
-        ax1.plot(model.data['lin_ve'], label="lin_ve", c=(1, 0, 0.7), linewidth=1)
+        ax1.plot(model.data['lin_ve'], label="lin_ve",
+        c=(1, 0, 0.7), linewidth=0.4)
+
         ax1.plot(model.data['omega'], label="omega", linewidth=1)
         plt.title("Position and speed")
         ax1.legend()
@@ -261,13 +298,14 @@ def run_simulation_pendulum(name=None, gradient_ax=None, friction=0.0, time_rang
         # omg = np.array(model.data['omega']) * -1
         omg = np.array(model.data['omega'])
         c = np.random.random(3)
-        c[1] = c[1] * 0.4 + 0.5
-        gradient_ax.plot(model.data['theta'], omg, label=name, color=c)
+        c[1] = c[1] * 0.4 + 0.5  # Color change
+        gradient_ax.plot(model.data['theta'], omg, label=name,
+        color=c, linewidth=0.4)
+
         gradient_ax.legend(loc=1)
 
 
-friction = 0.4
-# friction = 0
+friction = 0.002
 step_size = 0.01
 SHOW = False
 RENDER = False
@@ -277,18 +315,29 @@ PLOT = False
 initial_theta = math.radians(179 + 180)
 initial_omega = -7.2 + 0.4
 time_range = 5_000
-ax = pendulum_gradient(N=70, plot_range=10, friction=friction, step_size=step_size)
+ax = pendulum_gradient(N=25, plot_range=10, friction=friction, step_size=step_size)
 
-run_simulation_pendulum(f"Pendulum, {step_size}", ax,
-                        friction=friction, time_range=time_range, step_size=step_size,
-                        initial_theta=initial_theta, initial_omega=initial_omega)
-run_simulation_pendulum(f"Pendulum2 {step_size * 10}", ax,
-                        friction=friction, time_range=time_range // 10, step_size=step_size * 10,
-                        initial_theta=initial_theta, initial_omega=initial_omega)
-run_simulation_pendulum(f"Pendulum3 {step_size / 10}", ax,
-                        friction=friction, time_range=time_range * 10, step_size=step_size / 10,
-                        initial_theta=initial_theta, initial_omega=initial_omega)
+#run_simulation_pendulum(f"Pendulum, {step_size}", ax, friction=friction,
+                        #time_range=time_range, step_size=step_size,
+                        #initial_theta=initial_theta,
+                        #initial_omega=initial_omega)
+#run_simulation_pendulum(f"Pendulum2 {step_size * 10}", ax, friction=friction,
+                        #time_range=time_range // 10, step_size=step_size * 10,
+                        #initial_theta=initial_theta,
+                        #initial_omega=initial_omega)
+#
+#run_simulation_pendulum(f"Pendulum3 {step_size / 10}", ax, friction=friction,
+                        #time_range=time_range * 10, step_size=step_size / 10,
+                        #initial_theta=initial_theta,
+                        #initial_omega=initial_omega)
+
+run_simulation_pendulum(f"Pendulum 4 {step_size}", ax,
+                        friction=friction, time_range=time_range,
+                        step_size=step_size,
+                        initial_theta=np.deg2rad(90),
+                        initial_omega=0)
+
 fig = ax.figure
 fig.savefig("pendulum.jpg")
 
-plt.show()
+#plt.show()
